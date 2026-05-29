@@ -1,0 +1,25 @@
+### 测试hello接口
+GET http://localhost:8080/hello
+###查询所有学生
+GET http://localhost:8080/students
+###根据id查询学生
+GET http://localhost:8080/students/1
+###添加学生
+POST http://localhost:8080/students
+Content-Type:application/json
+
+{
+    "id":4,
+    "name":"赵六",
+    "age":21,
+    "phone":"1380000004"
+}
+###修改学生
+PUT http://localhost:8080/students/4
+Content-Type: application/json
+
+{"name":"赵六修改后",
+"age":22,
+"phone":"138000005"}
+###删除学生
+###DELETE http://localhost:8080/students/4
