@@ -1,11 +1,11 @@
 package com.example.demo.controller;
 
+import com.example.demo.common.Result;
 import com.example.demo.entity.Student;
 import com.example.demo.service.StudentService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 // @RestController 表示这是一个接口控制器，方法返回值会直接写入 HTTP 响应体。
 @RestController
@@ -22,75 +22,52 @@ public class StudentController {
 
     // GET /students：查询所有学生。
     @GetMapping
-    public List<Student> findAll() {
-        return studentService.findAll();
+    public Result<List<Student>> findAll() {
+        return Result.success(studentService.findAll());
     }
 
     // GET /students/{id}：根据 id 查询单个学生。
     @GetMapping("/{id}")
-    public Student findById(@PathVariable Integer id) {
+    public Result<Student> findById(@PathVariable Integer id) {
         // @PathVariable 会把路径中的 {id} 取出来，赋值给方法参数 id。
-        return studentService.findById(id);
+        Student student = studentService.findById(id);
+        if (student == null) {
+            return Result.fail("学生不存在");
+        }
+        return Result.success(student);
     }
 
     // POST /students：新增学生。
     // @RequestBody 会把请求体中的 JSON 转换成 Student 对象。
-//    public String addStudent(@RequestBody Student student)
-
-        @PostMapping
-    public Map<String,Object> addStudent(@RequestBody Student student) {
+    @PostMapping
+    public Result<Student> addStudent(@RequestBody Student student) {
         boolean result = studentService.addStudent(student);
         if (result) {
-            return Map.of(
-                    "code",200,
-                    "message","添加学生成功",
-                    "data",student
-            );
-        }else  {
-            return Map.of(
-                    "code",500,
-                    "message","添加学生失败了",
-                    "data","id 可能已经存在"
-            );
+            return Result.success("添加学生成功", student);
+        } else {
+            return Result.fail("添加学生失败，id 可能已经存在");
         }
     }
 
     // PUT /students/{id}：根据 id 修改学生信息。
     @PutMapping("/{id}")
-    public Map<String, Object> updateStudent(@PathVariable Integer id, @RequestBody Student student) {
+    public Result<Student> updateStudent(@PathVariable Integer id, @RequestBody Student student) {
         boolean result = studentService.updateStudent(id, student);
         if (result) {
-            return Map.of(
-                    "code",200,
-                    "message","修改学生成功",
-                    "data",student
-            );
-        }else  {
-            return Map.of(
-                    "code",500,
-                    "message","修改学生失败",
-                    "data","学生不存在"
-            );
+            return Result.success("修改学生成功", student);
+        } else {
+            return Result.fail("修改学生失败，学生不存在");
         }
     }
 
     // DELETE /students/{id}：根据 id 删除学生。
-    // public String deleteStudent(@PathVariable Integer id)
     @DeleteMapping("/{id}")
-    public Map<String,Object> deleteStudent(@PathVariable Integer id){
+    public Result<Integer> deleteStudent(@PathVariable Integer id) {
         boolean result = studentService.deleteStudent(id);
         if (result) {
-            return Map.of(
-                    "code",200,
-                    "message","删除学生成功",
-                    "data",id
-            );
-        }else   {
-            return Map.of(
-                    "code",500,
-                    "message","删除学生失败",
-                    "data","学生不存在"
-            );
+            return Result.success("删除学生成功", id);
+        } else {
+            return Result.fail("删除学生失败，学生不存在");
         }
     }
 }
