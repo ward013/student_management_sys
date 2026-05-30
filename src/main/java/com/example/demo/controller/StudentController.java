@@ -5,6 +5,7 @@ import com.example.demo.service.StudentService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 // @RestController 表示这是一个接口控制器，方法返回值会直接写入 HTTP 响应体。
 @RestController
@@ -34,35 +35,62 @@ public class StudentController {
 
     // POST /students：新增学生。
     // @RequestBody 会把请求体中的 JSON 转换成 Student 对象。
-    @PostMapping
-    public String addStudent(@RequestBody Student student) {
+//    public String addStudent(@RequestBody Student student)
+
+        @PostMapping
+    public Map<String,Object> addStudent(@RequestBody Student student) {
         boolean result = studentService.addStudent(student);
         if (result) {
-            return "adding student success";
+            return Map.of(
+                    "code",200,
+                    "message","添加学生成功",
+                    "data",student
+            );
         }else  {
-            return "adding student fail";
+            return Map.of(
+                    "code",500,
+                    "message","添加学生失败了",
+                    "data","id 可能已经存在"
+            );
         }
     }
 
     // PUT /students/{id}：根据 id 修改学生信息。
     @PutMapping("/{id}")
-    public String updateStudent(@PathVariable Integer id, @RequestBody Student student) {
+    public Map<String, Object> updateStudent(@PathVariable Integer id, @RequestBody Student student) {
         boolean result = studentService.updateStudent(id, student);
         if (result) {
-            return "update student success";
+            return Map.of(
+                    "code",200,
+                    "message","修改学生成功",
+                    "data",student
+            );
         }else  {
-            return "update student fail";
+            return Map.of(
+                    "code",500,
+                    "message","修改学生失败",
+                    "data","学生不存在"
+            );
         }
     }
 
     // DELETE /students/{id}：根据 id 删除学生。
+    // public String deleteStudent(@PathVariable Integer id)
     @DeleteMapping("/{id}")
-    public String deleteStudent(@PathVariable Integer id) {
+    public Map<String,Object> deleteStudent(@PathVariable Integer id){
         boolean result = studentService.deleteStudent(id);
         if (result) {
-            return "delete student success";
+            return Map.of(
+                    "code",200,
+                    "message","删除学生成功",
+                    "data",id
+            );
         }else   {
-            return "delete student fail";
+            return Map.of(
+                    "code",500,
+                    "message","删除学生失败",
+                    "data","学生不存在"
+            );
         }
     }
 }
