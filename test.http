@@ -1,25 +1,76 @@
 ### 测试hello接口
 GET http://localhost:8080/hello
+
 ###查询所有学生
 GET http://localhost:8080/students
+
 ###根据id查询学生
 GET http://localhost:8080/students/1
+
+###根据不存在的id查询学生
+GET http://localhost:8080/students/999
+
+###根据非法id查询学生
+GET http://localhost:8080/students/0
+
 ###添加学生
 POST http://localhost:8080/students
-Content-Type:application/json
+Content-Type: application/json
 
 {
-    "id":4,
-    "name":"赵六",
-    "age":21,
-    "phone":"1380000004"
+  "id": 4,
+  "name": "赵六",
+  "age": 21,
+  "phone": "1380000004"
 }
+
+###添加重复id的学生
+POST http://localhost:8080/students
+Content-Type: application/json
+
+{
+  "id": 1,
+  "name": "重复学生",
+  "age": 20,
+  "phone": "1380000999"
+}
+
+###添加非法学生数据
+POST http://localhost:8080/students
+Content-Type: application/json
+
+{
+  "id": 0,
+  "name": "",
+  "age": -1,
+  "phone": ""
+}
+
 ###修改学生
 PUT http://localhost:8080/students/4
 Content-Type: application/json
 
-{"name":"赵六修改后",
-"age":22,
-"phone":"138000005"}
+{
+  "name": "赵六修改后",
+  "age": 22,
+  "phone": "138000005"
+}
+
+###修改不存在的学生
+PUT http://localhost:8080/students/999
+Content-Type: application/json
+
+{
+  "name": "不存在的学生",
+  "age": 22,
+  "phone": "138000005"
+}
+
 ###删除学生
-###DELETE http://localhost:8080/students/4
+DELETE http://localhost:8080/students/4
+
+###删除不存在的学生
+DELETE http://localhost:8080/students/999
+
+###删除学生
+DELETE http://localhost:8080/students/0

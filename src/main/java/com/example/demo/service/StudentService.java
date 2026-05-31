@@ -1,6 +1,7 @@
 package com.example.demo.service;
 
 import com.example.demo.entity.Student;
+import com.example.demo.exception.BusinessException;
 import com.example.demo.mapper.StudentMapper;
 import org.springframework.stereotype.Service;
 
@@ -22,27 +23,46 @@ public class StudentService {
         return studentMapper.findAll();
     }
 
-    // 根据 id 查询一个学生；如果数据库中没有对应记录，Mapper 通常会返回 null。
+    // 根据 id 查询一个学生；如果查不到，则抛出业务异常。
     public Student findById(int id) {
-        return studentMapper.findById(id);
+        Student student = studentMapper.findById(id);
+        if (student == null) {
+            throw new BusinessException(404, "学生不存在");
+        }
+        return student;
     }
 
-    // 新增学生。MyBatis 的 insert/update/delete 通常返回受影响的行数。
-    public boolean addStudent(Student student) {
+    // 新增学生。如果 id 已存在，则抛出业务异常。
+    public Student addStudent(Student student) {
+        Student existingStudent = studentMapper.findById(student.getId());
+        if (existingStudent != null) {
+            throw new BusinessException(409, "添加学生失败，id 已存在");
+        }
         int rows = studentMapper.insertStudent(student);
-        return rows > 0;
+        if (rows <= 0) {
+            throw new BusinessException(500, "添加学生失败");
+        }
+        return student;
     }
 
     // 修改学生。路径里的 id 更可信，所以先把 id 设置到请求体对象里。
-    public boolean updateStudent(Integer id, Student student) {
+    public Student updateStudent(Integer id, Student student) {
+        findById(id);
         student.setId(id);
         int rows = studentMapper.updateStudent(student);
-        return rows > 0;
+        if (rows <= 0) {
+            throw new BusinessException(500, "修改学生失败");
+        }
+        return student;
     }
 
-    // 删除学生。返回 true 表示数据库中确实删除了一条记录。
-    public boolean deleteStudent(Integer id) {
+    // 删除学生。删除前先检查是否存在。
+    public Integer deleteStudent(Integer id) {
+        findById(id);
         int rows = studentMapper.deleteStudent(id);
-        return rows > 0;
+        if (rows <= 0) {
+            throw new BusinessException(500, "删除学生失败");
+        }
+        return id;
     }
 }

@@ -1,11 +1,27 @@
 package com.example.demo.entity;
 
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
 // Student 是学生实体类，用来承载数据库 student 表的一行数据。
 // 字段名建议和数据库列名保持一致，这样 MyBatis 可以自动完成映射。
 public class Student {
+    @NotNull(message = "学生id不能为空")
+    @Min(value = 1, message = "学生id必须大于0")
     private Integer id;
+
+    @NotBlank(message = "学生姓名不能为空")
+    @Size(max = 50, message = "学生姓名长度不能超过50个字符")
     private String name;
+
+    @NotNull(message = "学生年龄不能为空")
+    @Min(value = 0, message = "学生年龄不能小于0")
     private Integer age;
+
+    @NotBlank(message = "学生手机号不能为空")
+    @Size(max = 20, message = "学生手机号长度不能超过20个字符")
     private String phone;
 
     // 无参构造方法很重要：Spring/Jackson/MyBatis 创建对象时经常需要它。
@@ -25,10 +41,6 @@ public class Student {
     }
 
     public void setId(Integer id) {
-        // 这里做了简单校验，避免创建没有 id 的学生对象。
-        if (id == null) {
-            throw new IllegalArgumentException("id cannot be null");
-        }
         this.id = id;
     }
 
@@ -53,10 +65,6 @@ public class Student {
     }
 
     public void setName(String name) {
-        // name 是学生的核心信息，这里不允许为空。
-        if (name == null) {
-            throw new IllegalArgumentException("name cannot be null");
-        }
         this.name = name;
     }
 
