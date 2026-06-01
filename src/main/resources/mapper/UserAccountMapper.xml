@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.demo.mapper.UserAccountMapper">
+
+    <resultMap id="UserAccountResultMap" type="UserAccount">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="passwordHash" column="password_hash"/>
+        <result property="role" column="role"/>
+        <result property="identityType" column="identity_type"/>
+        <result property="identityId" column="identity_id"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="UserAccountResultMap">
+        select id, username, password_hash, role, identity_type, identity_id
+        from user_account
+        order by id asc
+    </select>
+
+    <select id="findById" parameterType="int" resultMap="UserAccountResultMap">
+        select id, username, password_hash, role, identity_type, identity_id
+        from user_account
+        where id = #{id}
+    </select>
+
+    <select id="findByUsername" parameterType="string" resultMap="UserAccountResultMap">
+        select id, username, password_hash, role, identity_type, identity_id
+        from user_account
+        where username = #{username}
+    </select>
+
+    <select id="findByIdentityBinding" resultMap="UserAccountResultMap">
+        select id, username, password_hash, role, identity_type, identity_id
+        from user_account
+        where identity_type = #{identityType}
+          and identity_id = #{identityId}
+    </select>
+
+    <insert id="insertUser" parameterType="UserAccount" useGeneratedKeys="true" keyProperty="id">
+        insert into user_account(username, password_hash, role, identity_type, identity_id)
+        values(#{username}, #{passwordHash}, #{role}, #{identityType}, #{identityId})
+    </insert>
+
+    <update id="updateUser" parameterType="UserAccount">
+        update user_account
+        set username = #{username},
+            password_hash = #{passwordHash},
+            role = #{role},
+            identity_type = #{identityType},
+            identity_id = #{identityId}
+        where id = #{id}
+    </update>
+</mapper>
