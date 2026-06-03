@@ -2,9 +2,13 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- UserAccountMapper.xml 对应 UserAccountMapper 接口，负责 user_account 表。 -->
 
 <mapper namespace="com.example.demo.mapper.UserAccountMapper">
 
+    <!-- resultMap 解决数据库列名和 Java 属性名不完全一致的问题，例如
+    将下面的字段名映射到对应的
+    password_hash -> passwordHash。 -->
     <resultMap id="UserAccountResultMap" type="UserAccount">
         <id property="id" column="id"/>
         <result property="username" column="username"/>
@@ -14,24 +18,28 @@
         <result property="identityId" column="identity_id"/>
     </resultMap>
 
+    <!-- 查询全部账号。 -->
     <select id="findAll" resultMap="UserAccountResultMap">
         select id, username, password_hash, role, identity_type, identity_id
         from user_account
         order by id asc
     </select>
 
+    <!-- 根据主键查询账号。 -->
     <select id="findById" parameterType="int" resultMap="UserAccountResultMap">
         select id, username, password_hash, role, identity_type, identity_id
         from user_account
         where id = #{id}
     </select>
 
+    <!-- 根据用户名查询账号，登录和注册查重时会使用。 -->
     <select id="findByUsername" parameterType="string" resultMap="UserAccountResultMap">
         select id, username, password_hash, role, identity_type, identity_id
         from user_account
         where username = #{username}
     </select>
 
+    <!-- 根据身份绑定查询账号，保证一个工号只绑定到一个账号。 -->
     <select id="findByIdentityBinding" resultMap="UserAccountResultMap">
         select id, username, password_hash, role, identity_type, identity_id
         from user_account
@@ -39,11 +47,20 @@
           and identity_id = #{identityId}
     </select>
 
-    <insert id="insertUser" parameterType="UserAccount" useGeneratedKeys="true" keyProperty="id">
+    <!-- 新增账号时使用 useGeneratedKeys 自动回填数据库生成的主键 id。 -->
+    <!-- 执行insertUser方法时，传入一个UserAccount对象
+        Mybatis会自动执行UserAccount的getUsername、getPasswordHash、getRole、getIdentityType、getIdentityId方法
+        keyProperty="id"意思：把数据库生成的主键值，回写到 Java 对象的id属性上。
+    -->
+    <insert id="insertUser"
+            parameterType="UserAccount"
+            useGeneratedKeys="true"
+            keyProperty="id">
         insert into user_account(username, password_hash, role, identity_type, identity_id)
         values(#{username}, #{passwordHash}, #{role}, #{identityType}, #{identityId})
     </insert>
 
+    <!-- 更新账号信息。 -->
     <update id="updateUser" parameterType="UserAccount">
         update user_account
         set username = #{username},

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+// 用户管理控制器：只开放给管理员，用来维护系统里的账号。
 @RestController
 @RequestMapping(value = "/users", produces = "application/json;charset=UTF-8")
 public class UserAccountController {
@@ -27,6 +28,7 @@ public class UserAccountController {
         this.authService = authService;
     }
 
+    // 查询系统中全部账号。
     @GetMapping
     public Result<List<UserAccount>> findAll(HttpSession session) {
         UserAccount currentUser = authService.getCurrentUser(session);
@@ -34,6 +36,7 @@ public class UserAccountController {
         return Result.success(userAccountService.findAll());
     }
 
+    // 管理员更新用户信息，例如角色、绑定身份和密码。
     @PutMapping("/{id}")
     public Result<UserAccount> updateUser(@PathVariable Integer id,
                                           @Valid @RequestBody UserUpdateRequest request,

@@ -1,3 +1,6 @@
+// 前端状态中心：
+// 这里统一保存当前登录用户、管理员列表数据和普通用户的个人资料。
+// 这样各个渲染函数只从 state 取数据，不需要彼此传很多参数。
 const state = {
   currentUser: null,
   users: [],
@@ -6,17 +9,24 @@ const state = {
   currentProfile: null
 };
 
+// 先缓存几个顶层容器，后面切换登录页 / 控制台时会反复用到。
 const authView = document.getElementById("authView");
 const appView = document.getElementById("appView");
 const topbarActions = document.getElementById("topbarActions");
 
+// 等页面结构加载完成后，再去挂事件和拉取登录态。
 document.addEventListener("DOMContentLoaded", init);
 
+// 页面启动入口：先渲染登录页，再尝试恢复已有 Session。
 async function init() {
   renderAuthView();
   await refreshSession();
 }
 
+// 统一封装 fetch：
+// 1. 默认用 JSON 和后端通信
+// 2. 自动携带同源 cookie，维持 Session 登录态
+// 3. 把后端统一返回的 Result<T> 解包并转换成前端可读的异常
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, {
     headers: {
@@ -45,6 +55,8 @@ async function fetchJson(url, options = {}) {
   return payload;
 }
 
+// 刷新当前登录态。
+// 如果 Session 还有效，就直接进入对应角色的面板；否则回到登录注册页。
 async function refreshSession() {
   try {
     const response = await fetchJson("/auth/me", { method: "GET" });
@@ -61,6 +73,8 @@ async function refreshSession() {
   }
 }
 
+// 渲染未登录状态下的页面。
+// 这里只负责输出 HTML 和绑定登录/注册事件，不做业务请求。
 function renderAuthView() {
   authView.classList.remove("hidden");
   appView.classList.add("hidden");
@@ -136,6 +150,8 @@ function renderAuthView() {
   });
 }
 
+// 根据当前用户角色渲染管理员视图或普通用户视图。
+// 管理员看到的是完整的管理台，普通用户看到的是自己的身份与资料。
 function renderDashboard() {
   authView.classList.add("hidden");
   appView.classList.remove("hidden");
@@ -183,7 +199,7 @@ function renderDashboard() {
 
   if (state.currentUser.role === "ADMIN") {
     appView.innerHTML = `
-      <section class="summary-strip">
+      <section class="summary-strip" id="adminSummaryStrip">
         ${renderSummaryCard("用户总数", state.users.length, "当前系统里的登录账号", "warm")}
         ${renderSummaryCard("学生总数", state.students.length, "可绑定学生身份的记录")}
         ${renderSummaryCard("老师总数", state.teachers.length, "可绑定老师身份的记录")}
@@ -191,7 +207,7 @@ function renderDashboard() {
       </section>
       <section class="overview-grid">
         ${userInfo}
-        <section class="section section-tint">
+        <section class="section">
           <p class="section-label">控制台摘要</p>
           <h3>先处理身份，再处理资料</h3>
           <p class="hint">这套面板把账号、身份绑定和学生档案拆开显示，方便先排查账号权限，再定位具体资料记录。</p>
@@ -202,8 +218,8 @@ function renderDashboard() {
         <section class="section">
           <div class="section-header">
             <div>
-              <p class="section-label">用户管理</p>
-              <h3>所有用户</h3>
+              <p class="section-label">数据列表</p>
+              <h3>用户列表</h3>
             </div>
           </div>
           <div id="userTableWrap"></div>
@@ -211,7 +227,7 @@ function renderDashboard() {
         <section class="section">
           <div class="section-header">
             <div>
-              <p class="section-label">编辑用户</p>
+              <p class="section-label">编辑窗口</p>
               <h3>更新账号角色与绑定</h3>
             </div>
           </div>
@@ -254,7 +270,7 @@ function renderDashboard() {
         <section class="section">
           <div class="section-header">
             <div>
-              <p class="section-label">学生管理</p>
+              <p class="section-label">数据列表</p>
               <h3>学生信息表</h3>
             </div>
           </div>
@@ -263,7 +279,7 @@ function renderDashboard() {
         <section class="section">
           <div class="section-header">
             <div>
-              <p class="section-label">新增或修改学生</p>
+              <p class="section-label">筛选搜索</p>
               <h3>学生维护表单</h3>
             </div>
           </div>
@@ -291,21 +307,55 @@ function renderDashboard() {
           </form>
         </section>
       </section>
-      <section class="section">
-        <div class="section-header">
-          <div>
-            <p class="section-label">老师工号参考</p>
-            <h3>绑定老师身份时可使用</h3>
+      <section class="dashboard-grid">
+        <section class="section">
+          <div class="section-header">
+            <div>
+              <p class="section-label">数据列表</p>
+              <h3>老师信息表</h3>
+            </div>
           </div>
-        </div>
-        <div id="teacherTableWrap"></div>
+          <div id="teacherTableWrap"></div>
+        </section>
+        <section class="section">
+          <div class="section-header">
+            <div>
+              <p class="section-label">录入窗口</p>
+              <h3>老师维护表单</h3>
+            </div>
+          </div>
+          <form id="teacherForm" class="stack">
+            <label>老师工号
+              <input name="id" type="number" placeholder="例如 1003" required>
+            </label>
+            <div class="row">
+              <label>姓名
+                <input name="name" placeholder="请输入老师姓名" required>
+              </label>
+              <label>职称
+                <input name="title" placeholder="例如 讲师 / 班主任" required>
+              </label>
+            </div>
+            <label>手机号
+              <input name="phone" placeholder="请输入手机号" required>
+            </label>
+            <div class="button-row">
+              <button class="primary" type="submit">新增老师</button>
+              <button class="ghost" type="button" id="resetTeacherFormBtn">清空表单</button>
+            </div>
+            <div class="status" id="teacherStatus"></div>
+          </form>
+        </section>
       </section>
     `;
 
+    // 管理员面板里的表单和按钮，都在对应区域渲染完成后统一绑定事件。
     document.getElementById("userEditForm").addEventListener("submit", onUserEditSubmit);
     document.getElementById("studentForm").addEventListener("submit", onStudentCreateSubmit);
     document.getElementById("updateStudentBtn").addEventListener("click", onStudentUpdateSubmit);
     document.getElementById("resetStudentFormBtn").addEventListener("click", resetStudentForm);
+    document.getElementById("teacherForm").addEventListener("submit", onTeacherCreateSubmit);
+    document.getElementById("resetTeacherFormBtn").addEventListener("click", resetTeacherForm);
     return;
   }
 
@@ -324,6 +374,7 @@ function renderDashboard() {
   `;
 }
 
+// 渲染摘要卡片。
 function renderSummaryCard(label, value, caption, tone = "") {
   const toneClass = tone ? ` ${tone}` : "";
   return `
@@ -335,10 +386,13 @@ function renderSummaryCard(label, value, caption, tone = "") {
   `;
 }
 
+// 统计未绑定身份的普通用户数量，供管理员快速查看系统状态。
 function countUnboundUsers() {
   return state.users.filter(user => (user.role || "").toUpperCase() !== "ADMIN" && (user.identityType || "NONE") === "NONE").length;
 }
 
+// 管理员加载全部用户、学生、老师数据。
+// 这里用 Promise.all 并发请求，避免面板分三次慢慢刷新。
 async function loadAdminData() {
   const [usersRes, studentsRes, teachersRes] = await Promise.all([
     fetchJson("/users"),
@@ -348,11 +402,28 @@ async function loadAdminData() {
   state.users = usersRes.data;
   state.students = studentsRes.data;
   state.teachers = teachersRes.data;
+  renderAdminMetrics();
   renderUsersTable();
   renderStudentsTable();
   renderTeachersTable();
 }
 
+// 管理员数据加载完成后刷新顶部统计，避免初始渲染时显示旧数字。
+function renderAdminMetrics() {
+  const wrap = document.getElementById("adminSummaryStrip");
+  if (!wrap) {
+    return;
+  }
+  wrap.innerHTML = `
+    ${renderSummaryCard("用户总数", state.users.length, "当前系统里的登录账号", "warm")}
+    ${renderSummaryCard("学生总数", state.students.length, "可绑定学生身份的记录")}
+    ${renderSummaryCard("老师总数", state.teachers.length, "可绑定老师身份的记录")}
+    ${renderSummaryCard("待绑定账号", countUnboundUsers(), "还没有绑定身份的普通用户")}
+  `;
+}
+
+// 普通用户根据当前绑定的身份加载自己的资料。
+// 学生去 /students/me，老师去 /teachers/me，没有绑定则只显示绑定表单。
 async function loadUserProfile() {
   renderUserPanelsLoading();
   if (state.currentUser.identityType === "STUDENT") {
@@ -367,6 +438,7 @@ async function loadUserProfile() {
   renderUserPanels();
 }
 
+// 普通用户资料加载过程中的占位内容。
 function renderUserPanelsLoading() {
   const identityPanel = document.getElementById("identityPanel");
   const profilePanel = document.getElementById("profilePanel");
@@ -377,6 +449,8 @@ function renderUserPanelsLoading() {
   profilePanel.innerHTML = `<p class="empty-state">正在加载个人资料...</p>`;
 }
 
+// 渲染普通用户的“身份绑定 / 个人资料”区域。
+// 这部分只服务于普通用户，所以管理员不会进到这里。
 function renderUserPanels() {
   const identityPanel = document.getElementById("identityPanel");
   const profilePanel = document.getElementById("profilePanel");
@@ -436,6 +510,7 @@ function renderUserPanels() {
   ]);
 }
 
+// 把一组键值对渲染成简洁的资料卡。
 function renderProfileCard(title, fields) {
   return `
     <p class="section-label">个人信息</p>
@@ -451,6 +526,8 @@ function renderProfileCard(title, fields) {
   `;
 }
 
+// 渲染管理员的用户表格。
+// 每一行的“编辑”按钮会把对应账号信息填入右侧表单。
 function renderUsersTable() {
   const wrap = document.getElementById("userTableWrap");
   if (!wrap) {
@@ -462,6 +539,7 @@ function renderUsersTable() {
   }
 
   wrap.innerHTML = `
+    <div class="table-wrap">
     <table>
       <thead>
         <tr>
@@ -490,6 +568,7 @@ function renderUsersTable() {
         `).join("")}
       </tbody>
     </table>
+    </div>
   `;
 
   wrap.querySelectorAll("[data-user-id]").forEach(button => {
@@ -497,6 +576,8 @@ function renderUsersTable() {
   });
 }
 
+// 渲染管理员的学生表格。
+// 学生区除了展示，还支持“填入表单”和“删除”这两个动作。
 function renderStudentsTable() {
   const wrap = document.getElementById("studentTableWrap");
   if (!wrap) {
@@ -508,6 +589,7 @@ function renderStudentsTable() {
   }
 
   wrap.innerHTML = `
+    <div class="table-wrap">
     <table>
       <thead>
         <tr>
@@ -535,6 +617,7 @@ function renderStudentsTable() {
         `).join("")}
       </tbody>
     </table>
+    </div>
   `;
 
   wrap.querySelectorAll("[data-student-edit]").forEach(button => {
@@ -545,6 +628,8 @@ function renderStudentsTable() {
   });
 }
 
+// 渲染老师表格。
+// 这里暂时只做展示和“填入表单”，因为后端目前只开放了新增和查询。
 function renderTeachersTable() {
   const wrap = document.getElementById("teacherTableWrap");
   if (!wrap) {
@@ -556,6 +641,7 @@ function renderTeachersTable() {
   }
 
   wrap.innerHTML = `
+    <div class="table-wrap">
     <table>
       <thead>
         <tr>
@@ -563,6 +649,7 @@ function renderTeachersTable() {
           <th>姓名</th>
           <th>职称</th>
           <th>手机号</th>
+          <th>操作</th>
         </tr>
       </thead>
       <tbody>
@@ -572,13 +659,24 @@ function renderTeachersTable() {
             <td>${escapeHtml(teacher.name)}</td>
             <td>${escapeHtml(teacher.title)}</td>
             <td>${escapeHtml(teacher.phone)}</td>
+            <td>
+              <div class="table-actions">
+                <button class="ghost" type="button" data-teacher-fill="${teacher.id}">填入表单</button>
+              </div>
+            </td>
           </tr>
         `).join("")}
       </tbody>
     </table>
+    </div>
   `;
+
+  wrap.querySelectorAll("[data-teacher-fill]").forEach(button => {
+    button.addEventListener("click", () => fillTeacherForm(Number(button.dataset.teacherFill)));
+  });
 }
 
+// 把左侧表格里的用户数据填入右侧编辑表单。
 function fillUserForm(userId) {
   const user = state.users.find(item => item.id === userId);
   if (!user) {
@@ -594,6 +692,8 @@ function fillUserForm(userId) {
   setStatus("userEditStatus", `正在编辑用户 ${user.username}`, "success");
 }
 
+// 把左侧表格里的学生数据填入右侧维护表单。
+// 这样管理员可以先点选，再决定是否更新。
 function fillStudentForm(studentId) {
   const student = state.students.find(item => item.id === studentId);
   if (!student) {
@@ -607,12 +707,36 @@ function fillStudentForm(studentId) {
   setStatus("studentStatus", `已载入学生 ${student.name}，可以更新。`, "success");
 }
 
+// 把老师表格里的数据填入老师维护表单。
+// 目前主要是为了减少重复录入，也方便你后面继续扩更新功能。
+function fillTeacherForm(teacherId) {
+  const teacher = state.teachers.find(item => item.id === teacherId);
+  if (!teacher) {
+    return;
+  }
+  const form = document.getElementById("teacherForm");
+  form.elements["id"].value = teacher.id;
+  form.elements["name"].value = teacher.name;
+  form.elements["title"].value = teacher.title;
+  form.elements["phone"].value = teacher.phone;
+  setStatus("teacherStatus", `已载入老师 ${teacher.name}，可以作为新增参考。`, "success");
+}
+
+// 清空学生表单。
 function resetStudentForm() {
   const form = document.getElementById("studentForm");
   form.reset();
   setStatus("studentStatus", "", "");
 }
 
+// 清空老师表单。
+function resetTeacherForm() {
+  const form = document.getElementById("teacherForm");
+  form.reset();
+  setStatus("teacherStatus", "", "");
+}
+
+// 登录表单提交。
 async function onLoginSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -632,6 +756,7 @@ async function onLoginSubmit(event) {
   }
 }
 
+// 注册表单提交。
 async function onRegisterSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -652,12 +777,15 @@ async function onRegisterSubmit(event) {
   }
 }
 
+// 退出登录。
 async function onLogout() {
   await fetchJson("/auth/logout", { method: "POST" });
   state.currentUser = null;
   renderAuthView();
 }
 
+// 普通用户绑定身份。
+// 绑定成功后重新刷新 Session 对应的用户信息和资料面板。
 async function onBindSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -677,6 +805,8 @@ async function onBindSubmit(event) {
   }
 }
 
+// 管理员更新用户信息。
+// 账号资料改完后重新拉一遍管理员数据，让表格和统计保持同步。
 async function onUserEditSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -708,6 +838,7 @@ async function onUserEditSubmit(event) {
   }
 }
 
+// 管理员新增学生。
 async function onStudentCreateSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -726,6 +857,7 @@ async function onStudentCreateSubmit(event) {
   }
 }
 
+// 管理员更新学生。
 async function onStudentUpdateSubmit() {
   const form = document.getElementById("studentForm");
   const payload = readStudentForm(form);
@@ -746,6 +878,7 @@ async function onStudentUpdateSubmit() {
   }
 }
 
+// 管理员删除学生。
 async function onDeleteStudent(studentId) {
   if (!window.confirm(`确认删除学生工号 ${studentId} 吗？`)) {
     return;
@@ -759,6 +892,27 @@ async function onDeleteStudent(studentId) {
   }
 }
 
+// 管理员新增老师。
+// 这里和新增学生的流程保持一致：读表单、发请求、提示结果、刷新列表。
+async function onTeacherCreateSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const payload = readTeacherForm(form);
+
+  try {
+    await fetchJson("/teachers", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    setStatus("teacherStatus", "老师新增成功。", "success");
+    resetTeacherForm();
+    await loadAdminData();
+  } catch (error) {
+    setStatus("teacherStatus", error.message, "error");
+  }
+}
+
+// 从学生表单中读取数据并组装成请求体。
 function readStudentForm(form) {
   return {
     id: Number(form.elements["id"].value),
@@ -768,6 +922,18 @@ function readStudentForm(form) {
   };
 }
 
+// 从老师表单中读取数据并组装成请求体。
+function readTeacherForm(form) {
+  return {
+    id: Number(form.elements["id"].value),
+    name: form.elements["name"].value.trim(),
+    title: form.elements["title"].value.trim(),
+    phone: form.elements["phone"].value.trim()
+  };
+}
+
+// 统一设置页面上的提示信息。
+// 同一个函数服务于登录提示、注册提示、表单保存结果等多个位置。
 function setStatus(id, message, type) {
   const element = document.getElementById(id);
   if (!element) {
@@ -777,6 +943,7 @@ function setStatus(id, message, type) {
   element.className = `status ${type || ""}`.trim();
 }
 
+// 简单的 HTML 转义，防止把字符串直接塞进 innerHTML 时破坏页面结构。
 function escapeHtml(value) {
   return value
     .replaceAll("&", "&amp;")

@@ -5,12 +5,18 @@
 
 <mapper namespace="com.example.demo.mapper.TeacherMapper">
 
+    <!-- 查询全部老师，用于管理员管理视图和前端老师工号参考区。 -->
     <select id="findAll" resultType="Teacher">
         select id, name, title, phone
         from teacher
         order by id asc
     </select>
-
+    <!-- 添加老师时，数据库注入操作-->
+    <select id="insertTeacher" resultType="Teacher">
+        insert into Teacher(id, name,title,phone)
+        values(#{id},#{name},#{title},#{phone})
+    </select>
+    <!-- 根据工号查询单个老师。#{id} 是 MyBatis 的参数占位符，会使用预编译 SQL。 -->
     <select id="findById" parameterType="int" resultType="Teacher">
         select id, name, title, phone
         from teacher

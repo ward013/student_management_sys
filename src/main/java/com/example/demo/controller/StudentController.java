@@ -20,6 +20,7 @@ import java.util.List;
 @RequestMapping(value = "/students", produces = "application/json;charset=UTF-8")
 public class StudentController {
     // Controller 不直接操作数据库，而是调用 Service 完成业务逻辑。
+    // 包含两个service，即studentService和authService
     private final StudentService studentService;
     private final AuthService authService;
 

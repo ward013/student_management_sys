@@ -2,6 +2,7 @@ package com.example.demo.dto;
 
 import jakarta.validation.constraints.Size;
 
+// 管理员更新用户时使用的请求体，字段允许按需传递。
 public class UserUpdateRequest {
     @Size(min = 3, max = 50, message = "用户名长度必须在3到50个字符之间")
     private String username;

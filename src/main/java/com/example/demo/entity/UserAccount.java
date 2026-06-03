@@ -2,10 +2,12 @@ package com.example.demo.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+// UserAccount 实体对应 user_account 表，保存登录账号、角色和绑定身份信息。
 public class UserAccount {
     private Integer id;
     private String username;
 
+    // 密码摘要不应该返回给前端，所以这里用 @JsonIgnore 隐藏。
     @JsonIgnore
     private String passwordHash;
 
@@ -61,6 +63,7 @@ public class UserAccount {
         this.identityId = identityId;
     }
 
+    // 便捷方法：快速判断当前账号是不是管理员。
     public boolean isAdmin() {
         return "ADMIN".equalsIgnoreCase(role);
     }

@@ -1,5 +1,6 @@
 package com.example.demo.entity;
 
+// Teacher 实体对应数据库中的 teacher 表。
 public class Teacher {
     private Integer id;
     private String name;

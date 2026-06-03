@@ -1,3 +1,5 @@
+### 这是项目调试时使用的 HTTP 请求脚本，可以直接在 IDEA HTTP Client 中运行。
+
 ### 测试hello接口
 GET http://localhost:8080/hello
 
