@@ -261,6 +261,12 @@ a {
     border-radius: 2px;
 }
 
+.teacher-student-section {
+    margin-top: 18px;
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+}
+
 .section-body {
     padding: 16px;
 }

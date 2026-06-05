@@ -34,7 +34,7 @@ public class StudentController {
     @GetMapping
     public Result<List<Student>> findAll(HttpSession session) {
         UserAccount currentUser = authService.getCurrentUser(session);
-        authService.requireAdmin(currentUser);
+        authService.requireAdminOrTeacher(currentUser);
         return Result.success(studentService.findAll());
     }
 
@@ -43,7 +43,7 @@ public class StudentController {
     public Result<Student> findById(@PathVariable @Min(value = 1, message = "学生id必须大于0") Integer id,
                                     HttpSession session) {
         UserAccount currentUser = authService.getCurrentUser(session);
-        authService.requireStudentSelf(currentUser, id);
+        authService.requireStudentReadable(currentUser, id);
         return Result.success(studentService.findById(id));
     }
 

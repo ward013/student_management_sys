@@ -41,4 +41,14 @@ public class TeacherService {
         }
         return teacher;
     }
+    //
+    public Teacher updateTeacher(int id,Teacher teacher) {
+        findById(id);
+        teacher.setId(id);
+        int rows = teacherMapper.updateTeacher(teacher);
+        if (rows <= 0) {
+            throw new BusinessException(500,"修改教师信息失败");
+        }
+        return teacher;
+    }
 }

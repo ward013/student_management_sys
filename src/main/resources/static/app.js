@@ -6,7 +6,8 @@ const state = {
   users: [],
   students: [],
   teachers: [],
-  currentProfile: null
+  currentProfile: null,
+  visibleStudents: []
 };
 
 // 先缓存几个顶层容器，后面切换登录页 / 控制台时会反复用到。
@@ -341,6 +342,7 @@ function renderDashboard() {
             </label>
             <div class="button-row">
               <button class="primary" type="submit">新增老师</button>
+              <button class="secondary" type="button" id="updateTeacherBtn">更新当前教师</button>
               <button class="ghost" type="button" id="resetTeacherFormBtn">清空表单</button>
             </div>
             <div class="status" id="teacherStatus"></div>
@@ -355,16 +357,17 @@ function renderDashboard() {
     document.getElementById("updateStudentBtn").addEventListener("click", onStudentUpdateSubmit);
     document.getElementById("resetStudentFormBtn").addEventListener("click", resetStudentForm);
     document.getElementById("teacherForm").addEventListener("submit", onTeacherCreateSubmit);
+    document.getElementById("updateTeacherBtn").addEventListener("click",onTeacherUpadateSubmit);
     document.getElementById("resetTeacherFormBtn").addEventListener("click", resetTeacherForm);
     return;
   }
 
   appView.innerHTML = `
-    <section class="summary-strip">
+      <section class="summary-strip">
       ${renderSummaryCard("账号角色", escapeHtml(state.currentUser.role), "当前登录视角", "warm")}
       ${renderSummaryCard("身份类型", escapeHtml(state.currentUser.identityType || "NONE"), "决定可访问的数据范围")}
       ${renderSummaryCard("绑定工号", state.currentUser.identityId ?? "未绑定", "学生或老师工号")}
-      ${renderSummaryCard("访问范围", state.currentUser.identityType === "STUDENT" ? "本人学生资料" : state.currentUser.identityType === "TEACHER" ? "本人老师资料" : "需先绑定", "普通用户不能查看别人信息")}
+      ${renderSummaryCard("访问范围", state.currentUser.identityType === "STUDENT" ? "本人学生资料" : state.currentUser.identityType === "TEACHER" ? "老师资料与学生列表" : "需先绑定", state.currentUser.identityType === "TEACHER" ? "教师登录后可查看全部学生信息" : "普通用户不能查看别人信息")}
     </section>
     <section class="overview-grid">
       ${userInfo}
@@ -426,12 +429,17 @@ function renderAdminMetrics() {
 // 学生去 /students/me，老师去 /teachers/me，没有绑定则只显示绑定表单。
 async function loadUserProfile() {
   renderUserPanelsLoading();
+  state.visibleStudents = [];
   if (state.currentUser.identityType === "STUDENT") {
     const response = await fetchJson("/students/me");
     state.currentProfile = response.data;
   } else if (state.currentUser.identityType === "TEACHER") {
-    const response = await fetchJson("/teachers/me");
-    state.currentProfile = response.data;
+    const [teacherRes, studentsRes] = await Promise.all([
+      fetchJson("/teachers/me"),
+      fetchJson("/students")
+    ]);
+    state.currentProfile = teacherRes.data;
+    state.visibleStudents = studentsRes.data;
   } else {
     state.currentProfile = null;
   }
@@ -507,7 +515,56 @@ function renderUserPanels() {
     ["姓名", state.currentProfile.name],
     ["职称", state.currentProfile.title],
     ["手机号", state.currentProfile.phone]
-  ]);
+  ]) + renderTeacherStudentSection();
+}
+
+function renderTeacherStudentSection() {
+  if (!state.visibleStudents.length) {
+    return `
+      <div class="teacher-student-section">
+        <div class="card-titlebar">
+          <div>
+            <p class="section-label">学生信息</p>
+            <h3>当前暂无学生数据</h3>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="teacher-student-section">
+      <div class="card-titlebar">
+        <div>
+          <p class="section-label">学生信息</p>
+          <h3>教师可查看的学生列表</h3>
+        </div>
+        <span class="badge">${state.visibleStudents.length} 条</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>工号</th>
+              <th>姓名</th>
+              <th>年龄</th>
+              <th>手机号</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${state.visibleStudents.map(student => `
+              <tr>
+                <td>${student.id}</td>
+                <td>${escapeHtml(student.name)}</td>
+                <td>${student.age}</td>
+                <td>${escapeHtml(student.phone)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
 }
 
 // 把一组键值对渲染成简洁的资料卡。
@@ -877,7 +934,26 @@ async function onStudentUpdateSubmit() {
     setStatus("studentStatus", error.message, "error");
   }
 }
+// 管理员更新教师
+async function onTeacherUpadateSubmit(){
+ const form =document.getElementById("teacherForm");
+ const payload =readTeacherForm(form);
+    if(!payload.id){
+      setStatus("teacherStatus","请先输入或载入教师工号","error");
+      return;
+    }
+    try{
+        await fetchJson(`/teachers/${payload.id}`,{
+        method:"PUT",
+        body:JSON.stringify(payload)
+        });
+        setStatus("teacherStatus","成功修改教师信息","success");
+        await loadAdminData();
+    }catch(error){
+        setStatus("teacherStatus",error.message,"error");
+    }
 
+}
 // 管理员删除学生。
 async function onDeleteStudent(studentId) {
   if (!window.confirm(`确认删除学生工号 ${studentId} 吗？`)) {

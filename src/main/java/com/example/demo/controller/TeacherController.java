@@ -7,6 +7,7 @@ import com.example.demo.service.AuthService;
 import com.example.demo.service.TeacherService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,13 +31,31 @@ public class TeacherController {
         return Result.success("添加老师信息成功",teacherService.addTeacher(teacher));
 
     }
-
+    @GetMapping("/{id}")
+    public Result<Teacher> getTeacherById(@PathVariable @Min(value=1001,message="教师的工号必须大于1000") Integer id,
+                                          HttpSession session)
+    {
+        UserAccount currentUser = authService.getCurrentUser(session);
+        authService.requireAdmin(currentUser);
+        return Result.success("查询教师信息成功",teacherService.findById(id));
+    }
     // 管理员查看全部老师信息。
     @GetMapping
     public Result<List<Teacher>> findAll(HttpSession session) {
         UserAccount currentUser = authService.getCurrentUser(session);
         authService.requireAdmin(currentUser);
         return Result.success(teacherService.findAll());
+    }
+    // 修改教师信息
+    @PutMapping("/{id}")
+    public Result<Teacher> updateTeacher(
+            @PathVariable @Min(value=1001,message = "教师的工号大于2001")  Integer id,
+            @Valid @RequestBody Teacher teacher,
+            HttpSession session) {
+        UserAccount currentUser = authService.getCurrentUser(session);
+        authService.requireAdmin(currentUser);
+        return Result.success("修改教师信息成功",teacherService.updateTeacher(id, teacher));
+
     }
 
     // 已绑定老师身份的普通用户查看自己的老师资料。

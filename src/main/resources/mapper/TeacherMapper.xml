@@ -11,11 +11,21 @@
         from teacher
         order by id asc
     </select>
+
     <!-- 添加老师时，数据库注入操作-->
-    <select id="insertTeacher" resultType="Teacher">
-        insert into Teacher(id, name,title,phone)
+    <insert id="insertTeacher">
+        insert into teacher(id, name,title,phone)
         values(#{id},#{name},#{title},#{phone})
-    </select>
+    </insert>
+    <!-- 更新教师信息-->
+    <update id="updateTeacher">
+        update teacher
+        set id=#{id},
+            name=#{name},
+            title=#{title},
+            phone=#{phone}
+        where id=#{id}
+    </update>
     <!-- 根据工号查询单个老师。#{id} 是 MyBatis 的参数占位符，会使用预编译 SQL。 -->
     <select id="findById" parameterType="int" resultType="Teacher">
         select id, name, title, phone

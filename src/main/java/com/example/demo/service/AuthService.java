@@ -108,6 +108,14 @@ public class AuthService {
         }
     }
 
+    // 权限守卫：管理员和已绑定老师身份的普通用户都可以查看学生信息。
+    public void requireAdminOrTeacher(UserAccount currentUser) {
+        if (currentUser.isAdmin()) {
+            return;
+        }
+        requireBoundTeacher(currentUser);
+    }
+
     // 权限守卫：普通学生用户只能查看自己的 student 记录。
     public void requireStudentSelf(UserAccount currentUser, Integer studentId) {
         if (currentUser.isAdmin()) {
@@ -116,6 +124,17 @@ public class AuthService {
         if (!"STUDENT".equalsIgnoreCase(currentUser.getIdentityType()) || !studentId.equals(currentUser.getIdentityId())) {
             throw new BusinessException(403, "普通用户只能查看自己的学生信息");
         }
+    }
+
+    // 权限守卫：管理员、老师可以查看任意学生；学生只能查看自己的记录。
+    public void requireStudentReadable(UserAccount currentUser, Integer studentId) {
+        if (currentUser.isAdmin()) {
+            return;
+        }
+        if ("TEACHER".equalsIgnoreCase(currentUser.getIdentityType()) && currentUser.getIdentityId() != null) {
+            return;
+        }
+        requireStudentSelf(currentUser, studentId);
     }
 
     // 权限守卫：要求当前账号已经绑定学生身份。

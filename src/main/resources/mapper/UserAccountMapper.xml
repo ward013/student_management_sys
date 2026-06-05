@@ -56,7 +56,8 @@
             parameterType="UserAccount"
             useGeneratedKeys="true"
             keyProperty="id">
-        insert into user_account(username, password_hash, role, identity_type, identity_id)
+        insert into user_account(use
+        rname, password_hash, role, identity_type, identity_id)
         values(#{username}, #{passwordHash}, #{role}, #{identityType}, #{identityId})
     </insert>
 
