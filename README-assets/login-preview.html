@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录页预览</title>
+  <link rel="stylesheet" href="../src/main/resources/static/app.css">
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">S</div>
+        <div>
+          <strong>学生管理系统</strong>
+          <span>Student Admin</span>
+        </div>
+      </div>
+    </aside>
+    <div class="main-shell">
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="breadcrumb">
+            <span>首页</span>
+            <span>/</span>
+            <strong>登录</strong>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <span class="badge">未登录</span>
+        </div>
+      </header>
+      <main class="workspace">
+        <section class="auth-layout">
+          <section class="panel section-tint auth-shell">
+            <div>
+              <p class="section-label">登录系统</p>
+              <h3>进入校园身份控制台</h3>
+              <p class="hint">适合管理员、学生和老师使用的统一入口。登录后会按角色切换视图和权限范围。</p>
+            </div>
+            <form>
+              <label>用户名
+                <input value="admin">
+              </label>
+              <label>密码
+                <input type="password" value="admin123">
+              </label>
+              <div class="button-row">
+                <button class="primary" type="button">登录</button>
+                <button class="ghost" type="button">填入管理员账号</button>
+              </div>
+            </form>
+            <div class="access-grid">
+              <div class="access-card">
+                <h4>管理员</h4>
+                <p>查看所有用户、绑定状态、学生信息，并可维护账号角色和学生资料。</p>
+              </div>
+              <div class="access-card">
+                <h4>普通用户</h4>
+                <p>注册后默认为普通角色，绑定学生或老师工号后，才能访问自己的身份资料。</p>
+              </div>
+            </div>
+          </section>
+          <section class="panel auth-shell">
+            <div>
+              <p class="section-label">注册普通用户</p>
+              <h3>先创建账号，再绑定身份</h3>
+              <p class="hint">适合学生或老师先建立登录账号，随后用工号完成身份关联。</p>
+            </div>
+            <form>
+              <label>用户名
+                <input placeholder="例如 student01">
+              </label>
+              <label>密码
+                <input type="password" placeholder="至少 6 位">
+              </label>
+              <div class="button-row">
+                <button class="primary" type="button">注册</button>
+              </div>
+            </form>
+            <div class="roster-grid">
+              <div class="roster-card">
+                <h4>学生工号样例</h4>
+                <p>1 张三 · 2 李四 · 3 王五</p>
+              </div>
+              <div class="roster-card">
+                <h4>老师工号样例</h4>
+                <p>1001 陈老师 · 1002 周老师</p>
+              </div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

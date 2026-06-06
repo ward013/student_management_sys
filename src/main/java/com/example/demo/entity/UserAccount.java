@@ -18,51 +18,39 @@ public class UserAccount {
     public Integer getId() {
         return id;
     }
-
     public void setId(Integer id) {
         this.id = id;
     }
-
     public String getUsername() {
         return username;
     }
-
     public void setUsername(String username) {
         this.username = username;
     }
-
     public String getPasswordHash() {
         return passwordHash;
     }
-
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
     }
-
     public String getRole() {
         return role;
     }
-
     public void setRole(String role) {
         this.role = role;
     }
-
     public String getIdentityType() {
         return identityType;
     }
-
     public void setIdentityType(String identityType) {
         this.identityType = identityType;
     }
-
     public Integer getIdentityId() {
         return identityId;
     }
-
     public void setIdentityId(Integer identityId) {
         this.identityId = identityId;
     }
-
     // 便捷方法：快速判断当前账号是不是管理员。
     public boolean isAdmin() {
         return "ADMIN".equalsIgnoreCase(role);

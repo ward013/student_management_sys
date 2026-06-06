@@ -23,7 +23,7 @@ public class AuthService {
     private final UserAccountMapper userAccountMapper;
     private final StudentMapper studentMapper;
     private final TeacherMapper teacherMapper;
-
+    // 有参构造函数
     public AuthService(UserAccountMapper userAccountMapper,
                        StudentMapper studentMapper,
                        TeacherMapper teacherMapper) {
@@ -39,6 +39,7 @@ public class AuthService {
         }
         //使用UserAccount对象userAccount来存储单个账户的信息：
         UserAccount userAccount = new UserAccount();
+        // 获取各个属性，姓名、密码hash
         userAccount.setUsername(request.getUsername().trim());//设置姓名
         userAccount.setPasswordHash(PasswordUtils.hash(request.getPassword()));//设置密码的哈希值
         userAccount.setRole("USER");//设置角色信息
@@ -50,28 +51,39 @@ public class AuthService {
 
     // 登录：校验用户名密码，成功后把用户 id 写入 Session。
     public UserAccount login(LoginRequest request, HttpSession session) {
-        // 声明UserAccount类型的
+        // 声明UserAccount类型的对象userAccount，通过mapper映射调用findByUsername的数据库操作返回UserAccount对象
         UserAccount userAccount = userAccountMapper.findByUsername(request.getUsername().trim());
+        //对象userAccount空对象 或 用户输入密码的hash结果与数据库中存储的hash不匹配
         if (userAccount == null || !PasswordUtils.matches(request.getPassword(), userAccount.getPasswordHash())) {
             throw new BusinessException(401, "用户名或密码错误");
         }
         session.setAttribute(SESSION_USER_ID, userAccount.getId());
+        System.out.println("登录成功，Session ID = " + session.getId());
+
+        System.out.println("Session 中保存的用户ID = " + session.getAttribute(SESSION_USER_ID));
         return userAccount;
     }
 
     // 获取当前登录用户，这是大多数受保护接口的第一步。
     public UserAccount getCurrentUser(HttpSession session) {
+        // 由login中session设置语句session.setAttribute(SESSION_USER_ID, userAccount.getId());设置的id
         Object userId = session.getAttribute(SESSION_USER_ID);
         if (!(userId instanceof Integer)) {
+            //通过这里的判断是否有用户登陆，因为用户在登录时会将这里的session的属性id设置为Integer
+            //若未登录，则这里的的、useId为空对象
             throw new BusinessException(401, "请先登录");
         }
-
+        //声明UserAccount对象存储登陆的角色信息
         UserAccount userAccount = userAccountMapper.findById((Integer) userId);
-        if (userAccount == null) {
-            session.invalidate();
-            throw new BusinessException(401, "登录状态已失效");
+        if (userAccount == null) {//session里有id，但是数据库中无此用户：1️
+            //1. 用户账号被删除了
+            //2. 数据库数据被清空了
+            //3. Session 是旧的
+            //4. 用户 id 已经失效
+            session.invalidate();//让当前 Session 失效，相当于强制退出登录
+            throw new BusinessException(401, "登录状态已失效");//抛出异常值
         }
-        return userAccount;
+        return userAccount;//返回用户对象
     }
 
     // 退出登录，让 Session 失效。
@@ -81,24 +93,24 @@ public class AuthService {
 
     // 普通用户可以把自己的账号绑定到 student 或 teacher 表中的一条记录。
     public UserAccount bindIdentity(HttpSession session, BindIdentityRequest request) {
-        UserAccount currentUser = getCurrentUser(session);
-        if (currentUser.isAdmin()) {
+        UserAccount currentUser = getCurrentUser(session);//通过getCurrentUser来返回一个用户对象userAccount
+        if (currentUser.isAdmin()) {//判断是否管理员
             throw new BusinessException(403, "管理员账号不需要绑定身份");
         }
-
+        // 规范化身份信息
         String identityType = normalizeIdentityType(request.getIdentityType());
         Integer identityId = request.getIdentityId();
-        validateIdentityExists(identityType, identityId);
-
+        validateIdentityExists(identityType, identityId);//查询该身份的用户是否已经在用户表中绑定了身份（绑定了工号）避免一个工号两个身份
+        // 判断用户信息是否被绑定（工号）
         UserAccount boundUser = userAccountMapper.findByIdentityBinding(identityType, identityId);
         if (boundUser != null && !boundUser.getId().equals(currentUser.getId())) {
             throw new BusinessException(409, "该身份信息已被其他账号绑定");
         }
-
+        // 尚未绑定，则设置用户类型和身份id
         currentUser.setIdentityType(identityType);
         currentUser.setIdentityId(identityId);
-        userAccountMapper.updateUser(currentUser);
-        return userAccountMapper.findById(currentUser.getId());
+        userAccountMapper.updateUser(currentUser);//更新用户角色库信息
+        return userAccountMapper.findById(currentUser.getId());//返回UserAccount的对象
     }
 
     // 权限守卫：要求当前用户必须是管理员。
@@ -153,13 +165,13 @@ public class AuthService {
 
     // 校验身份工号是否存在于 student/teacher 表中。
     public void validateIdentityExists(String identityType, Integer identityId) {
-        if ("STUDENT".equals(identityType)) {
+        if ("STUDENT".equals(identityType)) {//身份是学生
             if (studentMapper.findById(identityId) == null) {
                 throw new BusinessException(404, "学生工号不存在");
             }
             return;
         }
-
+        //如果是身份是教师
         Teacher teacher = teacherMapper.findById(identityId);
         if (teacher == null) {
             throw new BusinessException(404, "老师工号不存在");
@@ -177,6 +189,7 @@ public class AuthService {
 
     // 统一规范身份类型输入。
     public String normalizeIdentityType(String identityType) {
+        // 身份类型：空字符串——>NONE;非空则将身份转为大写
         String normalizedType = identityType == null ? "NONE" : identityType.trim().toUpperCase();
         if (!"NONE".equals(normalizedType) && !"STUDENT".equals(normalizedType) && !"TEACHER".equals(normalizedType)) {
             throw new BusinessException(400, "身份类型只能是 NONE、STUDENT 或 TEACHER");

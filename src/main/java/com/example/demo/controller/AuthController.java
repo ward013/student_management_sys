@@ -19,14 +19,18 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping(value = "/auth", produces = "application/json;charset=UTF-8")
 public class AuthController {
+    // AuthController对应service为AuthService
     private final AuthService authService;
-
+    // AuthController的构造函数,传入AuthService对象
     public AuthController(AuthService authService) {
         this.authService = authService;
     }
 
     // 注册账号默认为普通用户。使用Result来接收请求的信息，给出返回的统一格式：code,message,data
     // 注册方法中，同时校验参数会烦和请求提
+    /* @RequestBody将前端的Json数据转化为RegisterRequest对象，然后将RegisterRequest对象里的参数进行@Valid合法校验
+    校验时，根据RegisterRequest类中的@NotBlank、@Size来进行参数校验
+     */
     @PostMapping("/register")
     public Result<UserAccount> register(@Valid @RequestBody RegisterRequest request) {
         return Result.success("注册成功", authService.register(request));

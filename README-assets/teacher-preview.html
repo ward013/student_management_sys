@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>教师页预览</title>
+  <link rel="stylesheet" href="../src/main/resources/static/app.css">
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">S</div>
+        <div>
+          <strong>学生管理系统</strong>
+          <span>Student Admin</span>
+        </div>
+      </div>
+    </aside>
+    <div class="main-shell">
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="breadcrumb">
+            <span>首页</span>
+            <span>/</span>
+            <strong>教师视图</strong>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <span class="badge">普通用户</span>
+          <span class="badge warm">teacher01</span>
+          <button class="ghost" type="button">刷新数据</button>
+          <button class="secondary" type="button">退出登录</button>
+        </div>
+      </header>
+      <main class="workspace">
+        <section class="app-view">
+          <section class="summary-strip">
+            <section class="summary-card warm">
+              <p class="section-label">账号角色</p>
+              <div class="summary-value">USER</div>
+              <div class="summary-caption">当前登录视角</div>
+            </section>
+            <section class="summary-card">
+              <p class="section-label">身份类型</p>
+              <div class="summary-value">TEACHER</div>
+              <div class="summary-caption">决定可访问的数据范围</div>
+            </section>
+            <section class="summary-card">
+              <p class="section-label">绑定工号</p>
+              <div class="summary-value">1001</div>
+              <div class="summary-caption">学生或老师工号</div>
+            </section>
+            <section class="summary-card">
+              <p class="section-label">访问范围</p>
+              <div class="summary-value">老师资料与学生列表</div>
+              <div class="summary-caption">教师登录后可查看全部学生信息</div>
+            </section>
+          </section>
+
+          <section class="overview-grid">
+            <section class="section section-tint">
+              <div class="section-header">
+                <div>
+                  <p class="section-label">当前账号</p>
+                  <h3>teacher01</h3>
+                </div>
+                <span class="badge">USER</span>
+              </div>
+              <div class="meta-list">
+                <div class="meta-item"><span class="meta-key">账号ID</span><span class="meta-value">3</span></div>
+                <div class="meta-item"><span class="meta-key">绑定身份类型</span><span class="meta-value">TEACHER</span></div>
+                <div class="meta-item"><span class="meta-key">绑定工号</span><span class="meta-value">1001</span></div>
+              </div>
+            </section>
+            <section class="section section-tint">
+              <p class="section-label">身份状态</p>
+              <h3>已绑定 TEACHER</h3>
+              <p class="hint">当前绑定工号：1001</p>
+            </section>
+          </section>
+
+          <section class="section">
+            <p class="section-label">个人信息</p>
+            <h3>老师个人资料</h3>
+            <div class="meta-list">
+              <div class="meta-item"><span class="meta-key">老师工号</span><span class="meta-value">1001</span></div>
+              <div class="meta-item"><span class="meta-key">姓名</span><span class="meta-value">陈老师</span></div>
+              <div class="meta-item"><span class="meta-key">职称</span><span class="meta-value">辅导员</span></div>
+              <div class="meta-item"><span class="meta-key">手机号</span><span class="meta-value">13900001001</span></div>
+            </div>
+
+            <div class="teacher-student-section">
+              <div class="card-titlebar">
+                <div>
+                  <p class="section-label">学生信息</p>
+                  <h3>教师可查看的学生列表</h3>
+                </div>
+                <span class="badge">3 条</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>工号</th><th>姓名</th><th>年龄</th><th>手机号</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>1</td><td>张三</td><td>19</td><td>13800000001</td></tr>
+                    <tr><td>2</td><td>李四</td><td>20</td><td>13800000002</td></tr>
+                    <tr><td>3</td><td>王五</td><td>21</td><td>13800000003</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理员页预览</title>
+  <link rel="stylesheet" href="../src/main/resources/static/app.css">
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">S</div>
+        <div>
+          <strong>学生管理系统</strong>
+          <span>Student Admin</span>
+        </div>
+      </div>
+      <nav class="side-nav">
+        <a class="nav-item active" href="#"><span class="nav-icon">⌂</span><span>首页</span></a>
+        <a class="nav-item sub-item" href="#">用户列表</a>
+        <a class="nav-item sub-item" href="#">学生信息表</a>
+        <a class="nav-item sub-item" href="#">老师信息表</a>
+      </nav>
+    </aside>
+    <div class="main-shell">
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="breadcrumb">
+            <span>首页</span>
+            <span>/</span>
+            <strong>管理员控制台</strong>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <span class="badge">管理员</span>
+          <span class="badge warm">admin</span>
+          <button class="ghost" type="button">刷新数据</button>
+          <button class="secondary" type="button">退出登录</button>
+        </div>
+      </header>
+      <main class="workspace">
+        <section class="app-view">
+          <section class="summary-strip">
+            <section class="summary-card warm">
+              <p class="section-label">用户总数</p>
+              <div class="summary-value">6</div>
+              <div class="summary-caption">当前系统里的登录账号</div>
+            </section>
+            <section class="summary-card">
+              <p class="section-label">学生总数</p>
+              <div class="summary-value">12</div>
+              <div class="summary-caption">可绑定学生身份的记录</div>
+            </section>
+            <section class="summary-card">
+              <p class="section-label">老师总数</p>
+              <div class="summary-value">4</div>
+              <div class="summary-caption">可绑定老师身份的记录</div>
+            </section>
+            <section class="summary-card">
+              <p class="section-label">待绑定账号</p>
+              <div class="summary-value">2</div>
+              <div class="summary-caption">还没有绑定身份的普通用户</div>
+            </section>
+          </section>
+
+          <section class="overview-grid">
+            <section class="section section-tint">
+              <div class="section-header">
+                <div>
+                  <p class="section-label">当前账号</p>
+                  <h3>admin</h3>
+                </div>
+                <span class="badge">ADMIN</span>
+              </div>
+              <div class="meta-list">
+                <div class="meta-item"><span class="meta-key">账号ID</span><span class="meta-value">1</span></div>
+                <div class="meta-item"><span class="meta-key">绑定身份类型</span><span class="meta-value">NONE</span></div>
+                <div class="meta-item"><span class="meta-key">绑定工号</span><span class="meta-value">未绑定</span></div>
+              </div>
+            </section>
+            <section class="section">
+              <p class="section-label">控制台摘要</p>
+              <h3>先处理身份，再处理资料</h3>
+              <p class="hint">管理员可以在同一页面查看用户、学生和教师数据，并通过表单维护角色与档案信息。</p>
+            </section>
+          </section>
+
+          <section class="dashboard-grid">
+            <section class="section">
+              <div class="section-header">
+                <div>
+                  <p class="section-label">数据列表</p>
+                  <h3>用户列表</h3>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>ID</th><th>用户名</th><th>角色</th><th>身份类型</th><th>绑定工号</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>1</td><td>admin</td><td>ADMIN</td><td>NONE</td><td>-</td></tr>
+                    <tr><td>2</td><td>student01</td><td>USER</td><td>STUDENT</td><td>1</td></tr>
+                    <tr><td>3</td><td>teacher01</td><td>USER</td><td>TEACHER</td><td>1001</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section class="section">
+              <div class="section-header">
+                <div>
+                  <p class="section-label">编辑窗口</p>
+                  <h3>更新账号角色与绑定</h3>
+                </div>
+              </div>
+              <form class="stack">
+                <label>用户名<input value="teacher01"></label>
+                <div class="row">
+                  <label>角色<select><option>USER</option></select></label>
+                  <label>身份类型<select><option>TEACHER</option></select></label>
+                </div>
+                <div class="row">
+                  <label>绑定工号<input value="1001"></label>
+                  <label>重置密码<input placeholder="留空则不修改"></label>
+                </div>
+                <div class="button-row"><button class="primary" type="button">保存用户修改</button></div>
+              </form>
+            </section>
+          </section>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
