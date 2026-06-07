@@ -14,6 +14,17 @@ create table if not exists teacher (
     phone varchar(20) not null
 );
 
+-- student_score 表保存学生成绩信息，支持一个学生多门课程、多学期成绩记录。
+create table if not exists student_score (
+    id bigint primary key auto_increment,
+    student_id int not null,
+    course_name varchar(100) not null,
+    score decimal(5,2) not null,
+    semester varchar(30) not null,
+    teacher_id int null,
+    teacher_name varchar(50) null
+);
+
 -- user_account 表保存登录账号、角色和身份绑定关系。
 create table if not exists user_account (
     id int primary key auto_increment,

@@ -133,6 +133,7 @@ public class AuthService {
         if (currentUser.isAdmin()) {
             return;
         }
+        // 如果当前角色不为Student或者当前用户id与学生id不匹配
         if (!"STUDENT".equalsIgnoreCase(currentUser.getIdentityType()) || !studentId.equals(currentUser.getIdentityId())) {
             throw new BusinessException(403, "普通用户只能查看自己的学生信息");
         }
@@ -140,13 +141,24 @@ public class AuthService {
 
     // 权限守卫：管理员、老师可以查看任意学生；学生只能查看自己的记录。
     public void requireStudentReadable(UserAccount currentUser, Integer studentId) {
-        if (currentUser.isAdmin()) {
+        if (currentUser.isAdmin()) {//如果是管理员
             return;
         }
+        //如果是教师
         if ("TEACHER".equalsIgnoreCase(currentUser.getIdentityType()) && currentUser.getIdentityId() != null) {
             return;
         }
         requireStudentSelf(currentUser, studentId);
+    }
+
+    // 成绩读取权限：管理员和老师可查看全部成绩，学生只能查看自己的成绩。
+    public void requireScoreReadable(UserAccount currentUser, Integer studentId) {
+        requireStudentReadable(currentUser, studentId);
+    }
+
+    // 成绩维护权限：管理员和老师可新增、修改成绩。
+    public void requireScoreWritable(UserAccount currentUser) {
+        requireAdminOrTeacher(currentUser);
     }
 
     // 权限守卫：要求当前账号已经绑定学生身份。

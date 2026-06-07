@@ -7,7 +7,9 @@ const state = {
   students: [],
   teachers: [],
   currentProfile: null,
-  visibleStudents: []
+  scores: [],
+  visibleStudents: [],
+  visibleScores: []
 };
 
 // 先缓存几个顶层容器，后面切换登录页 / 控制台时会反复用到。
@@ -204,6 +206,7 @@ function renderDashboard() {
         ${renderSummaryCard("用户总数", state.users.length, "当前系统里的登录账号", "warm")}
         ${renderSummaryCard("学生总数", state.students.length, "可绑定学生身份的记录")}
         ${renderSummaryCard("老师总数", state.teachers.length, "可绑定老师身份的记录")}
+        ${renderSummaryCard("成绩总数", state.scores.length, "当前成绩记录条数")}
         ${renderSummaryCard("待绑定账号", countUnboundUsers(), "还没有绑定身份的普通用户")}
       </section>
       <section class="overview-grid">
@@ -349,6 +352,48 @@ function renderDashboard() {
           </form>
         </section>
       </section>
+      <section class="dashboard-grid">
+        <section class="section">
+          <div class="section-header">
+            <div>
+              <p class="section-label">数据列表</p>
+              <h3>学生成绩表</h3>
+            </div>
+          </div>
+          <div id="scoreTableWrap"></div>
+        </section>
+        <section class="section">
+          <div class="section-header">
+            <div>
+              <p class="section-label">成绩维护</p>
+              <h3>成绩维护表单</h3>
+            </div>
+          </div>
+          <form id="scoreForm" class="stack">
+            <input name="id" type="hidden">
+            <label>学生工号
+              <input name="studentId" type="number" placeholder="例如 1" required>
+            </label>
+            <div class="row">
+              <label>课程名称
+                <input name="courseName" placeholder="例如 高等数学" required>
+              </label>
+              <label>成绩
+                <input name="score" type="number" step="0.01" min="0" max="100" placeholder="0 - 100" required>
+              </label>
+            </div>
+            <label>学期
+              <input name="semester" placeholder="例如 2026-春" required>
+            </label>
+            <div class="button-row">
+              <button class="primary" type="submit">新增成绩</button>
+              <button class="secondary" type="button" id="updateScoreBtn">更新当前成绩</button>
+              <button class="ghost" type="button" id="resetScoreFormBtn">清空表单</button>
+            </div>
+            <div class="status" id="scoreStatus"></div>
+          </form>
+        </section>
+      </section>
     `;
 
     // 管理员面板里的表单和按钮，都在对应区域渲染完成后统一绑定事件。
@@ -359,6 +404,9 @@ function renderDashboard() {
     document.getElementById("teacherForm").addEventListener("submit", onTeacherCreateSubmit);
     document.getElementById("updateTeacherBtn").addEventListener("click",onTeacherUpadateSubmit);
     document.getElementById("resetTeacherFormBtn").addEventListener("click", resetTeacherForm);
+    document.getElementById("scoreForm").addEventListener("submit", onScoreCreateSubmit);
+    document.getElementById("updateScoreBtn").addEventListener("click", onScoreUpdateSubmit);
+    document.getElementById("resetScoreFormBtn").addEventListener("click", () => resetScoreForm("scoreForm", "scoreStatus"));
     return;
   }
 
@@ -367,7 +415,7 @@ function renderDashboard() {
       ${renderSummaryCard("账号角色", escapeHtml(state.currentUser.role), "当前登录视角", "warm")}
       ${renderSummaryCard("身份类型", escapeHtml(state.currentUser.identityType || "NONE"), "决定可访问的数据范围")}
       ${renderSummaryCard("绑定工号", state.currentUser.identityId ?? "未绑定", "学生或老师工号")}
-      ${renderSummaryCard("访问范围", state.currentUser.identityType === "STUDENT" ? "本人学生资料" : state.currentUser.identityType === "TEACHER" ? "老师资料与学生列表" : "需先绑定", state.currentUser.identityType === "TEACHER" ? "教师登录后可查看全部学生信息" : "普通用户不能查看别人信息")}
+      ${renderSummaryCard("访问范围", state.currentUser.identityType === "STUDENT" ? "本人资料与成绩" : state.currentUser.identityType === "TEACHER" ? "老师资料、学生列表与成绩" : "需先绑定", state.currentUser.identityType === "TEACHER" ? "教师登录后可查看并维护学生成绩" : state.currentUser.identityType === "STUDENT" ? "学生只能查看自己的资料和成绩" : "普通用户不能查看别人信息")}
     </section>
     <section class="overview-grid">
       ${userInfo}
@@ -397,18 +445,21 @@ function countUnboundUsers() {
 // 管理员加载全部用户、学生、老师数据。
 // 这里用 Promise.all 并发请求，避免面板分三次慢慢刷新。
 async function loadAdminData() {
-  const [usersRes, studentsRes, teachersRes] = await Promise.all([
+  const [usersRes, studentsRes, teachersRes, scoresRes] = await Promise.all([
     fetchJson("/users"),
     fetchJson("/students"),
-    fetchJson("/teachers")
+    fetchJson("/teachers"),
+    fetchJson("/scores")
   ]);
   state.users = usersRes.data;
   state.students = studentsRes.data;
   state.teachers = teachersRes.data;
+  state.scores = scoresRes.data;
   renderAdminMetrics();
   renderUsersTable();
   renderStudentsTable();
   renderTeachersTable();
+  renderScoresTable("scoreTableWrap", state.scores, "score", true);
 }
 
 // 管理员数据加载完成后刷新顶部统计，避免初始渲染时显示旧数字。
@@ -421,6 +472,7 @@ function renderAdminMetrics() {
     ${renderSummaryCard("用户总数", state.users.length, "当前系统里的登录账号", "warm")}
     ${renderSummaryCard("学生总数", state.students.length, "可绑定学生身份的记录")}
     ${renderSummaryCard("老师总数", state.teachers.length, "可绑定老师身份的记录")}
+    ${renderSummaryCard("成绩总数", state.scores.length, "当前成绩记录条数")}
     ${renderSummaryCard("待绑定账号", countUnboundUsers(), "还没有绑定身份的普通用户")}
   `;
 }
@@ -430,16 +482,23 @@ function renderAdminMetrics() {
 async function loadUserProfile() {
   renderUserPanelsLoading();
   state.visibleStudents = [];
+  state.visibleScores = [];
   if (state.currentUser.identityType === "STUDENT") {
-    const response = await fetchJson("/students/me");
-    state.currentProfile = response.data;
+    const [profileRes, scoresRes] = await Promise.all([
+      fetchJson("/students/me"),
+      fetchJson("/scores/me")
+    ]);
+    state.currentProfile = profileRes.data;
+    state.visibleScores = scoresRes.data;
   } else if (state.currentUser.identityType === "TEACHER") {
-    const [teacherRes, studentsRes] = await Promise.all([
+    const [teacherRes, studentsRes, scoresRes] = await Promise.all([
       fetchJson("/teachers/me"),
-      fetchJson("/students")
+      fetchJson("/students"),
+      fetchJson("/scores")
     ]);
     state.currentProfile = teacherRes.data;
     state.visibleStudents = studentsRes.data;
+    state.visibleScores = scoresRes.data;
   } else {
     state.currentProfile = null;
   }
@@ -506,7 +565,8 @@ function renderUserPanels() {
       ["姓名", state.currentProfile.name],
       ["年龄", state.currentProfile.age],
       ["手机号", state.currentProfile.phone]
-    ]);
+    ]) + renderStudentScoreSection();
+    renderScoresTable("studentScoreTableWrap", state.visibleScores, "student-score", false);
     return;
   }
 
@@ -515,7 +575,31 @@ function renderUserPanels() {
     ["姓名", state.currentProfile.name],
     ["职称", state.currentProfile.title],
     ["手机号", state.currentProfile.phone]
-  ]) + renderTeacherStudentSection();
+  ]) + renderTeacherStudentSection() + renderTeacherScoreSection();
+
+  renderScoresTable("teacherScoreTableWrap", state.visibleScores, "teacher-score", true);
+
+  const teacherScoreForm = document.getElementById("teacherScoreForm");
+  if (teacherScoreForm) {
+    teacherScoreForm.addEventListener("submit", onTeacherScoreCreateSubmit);
+    document.getElementById("updateTeacherScoreBtn").addEventListener("click", onTeacherScoreUpdateSubmit);
+    document.getElementById("resetTeacherScoreFormBtn").addEventListener("click", () => resetScoreForm("teacherScoreForm", "teacherScoreStatus"));
+  }
+}
+
+function renderStudentScoreSection() {
+  return `
+    <div class="teacher-student-section">
+      <div class="card-titlebar">
+        <div>
+          <p class="section-label">我的成绩</p>
+          <h3>学生成绩列表</h3>
+        </div>
+        <span class="badge">${state.visibleScores.length} 条</span>
+      </div>
+      <div id="studentScoreTableWrap"></div>
+    </div>
+  `;
 }
 
 function renderTeacherStudentSection() {
@@ -563,6 +647,87 @@ function renderTeacherStudentSection() {
           </tbody>
         </table>
       </div>
+    </div>
+  `;
+}
+
+function renderTeacherScoreSection() {
+  return `
+    <div class="teacher-student-section">
+      <div class="card-titlebar">
+        <div>
+          <p class="section-label">学生成绩</p>
+          <h3>教师可查看和维护的成绩</h3>
+        </div>
+        <span class="badge">${state.visibleScores.length} 条</span>
+      </div>
+      <div id="teacherScoreTableWrap"></div>
+      <form id="teacherScoreForm" class="stack score-form-inline">
+        <input name="id" type="hidden">
+        <label>学生工号
+          <input name="studentId" type="number" placeholder="例如 1" required>
+        </label>
+        <div class="row">
+          <label>课程名称
+            <input name="courseName" placeholder="例如 高等数学" required>
+          </label>
+          <label>成绩
+            <input name="score" type="number" step="0.01" min="0" max="100" placeholder="0 - 100" required>
+          </label>
+        </div>
+        <label>学期
+          <input name="semester" placeholder="例如 2026-春" required>
+        </label>
+        <div class="button-row">
+          <button class="primary" type="submit">新增成绩</button>
+          <button class="secondary" type="button" id="updateTeacherScoreBtn">更新当前成绩</button>
+          <button class="ghost" type="button" id="resetTeacherScoreFormBtn">清空表单</button>
+        </div>
+        <div class="status" id="teacherScoreStatus"></div>
+      </form>
+    </div>
+  `;
+}
+
+function renderScoreTableMarkup(scores, actionPrefix, editable) {
+  if (!scores.length) {
+    return `<p class="empty-state">暂无成绩数据。</p>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>记录ID</th>
+            <th>学生工号</th>
+            <th>课程</th>
+            <th>成绩</th>
+            <th>学期</th>
+            <th>任课老师</th>
+            ${editable ? "<th>操作</th>" : ""}
+          </tr>
+        </thead>
+        <tbody>
+          ${scores.map(score => `
+            <tr>
+              <td>${score.id}</td>
+              <td>${score.studentId}</td>
+              <td>${escapeHtml(score.courseName)}</td>
+              <td>${formatScore(score.score)}</td>
+              <td>${escapeHtml(score.semester)}</td>
+              <td>${escapeHtml(score.teacherName || "-")}</td>
+              ${editable ? `
+                <td>
+                  <div class="table-actions">
+                    <button class="ghost" type="button" data-${actionPrefix}-edit="${score.id}">填入表单</button>
+                  </div>
+                </td>
+              ` : ""}
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
     </div>
   `;
 }
@@ -733,6 +898,28 @@ function renderTeachersTable() {
   });
 }
 
+function renderScoresTable(containerId, scores, actionPrefix, editable) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) {
+    return;
+  }
+  wrap.innerHTML = renderScoreTableMarkup(scores, actionPrefix, editable);
+  if (!editable) {
+    return;
+  }
+
+  wrap.querySelectorAll(`[data-${actionPrefix}-edit]`).forEach(button => {
+    button.addEventListener("click", () => {
+      const scoreId = Number(button.dataset[`${camelize(actionPrefix)}Edit`]);
+      if (containerId === "scoreTableWrap") {
+        fillScoreForm("scoreForm", scoreId, state.scores, "scoreStatus");
+        return;
+      }
+      fillScoreForm("teacherScoreForm", scoreId, state.visibleScores, "teacherScoreStatus");
+    });
+  });
+}
+
 // 把左侧表格里的用户数据填入右侧编辑表单。
 function fillUserForm(userId) {
   const user = state.users.find(item => item.id === userId);
@@ -779,6 +966,23 @@ function fillTeacherForm(teacherId) {
   setStatus("teacherStatus", `已载入老师 ${teacher.name}，可以作为新增参考。`, "success");
 }
 
+function fillScoreForm(formId, scoreId, scores, statusId) {
+  const score = scores.find(item => item.id === scoreId);
+  if (!score) {
+    return;
+  }
+  const form = document.getElementById(formId);
+  if (!form) {
+    return;
+  }
+  form.elements["id"].value = score.id;
+  form.elements["studentId"].value = score.studentId;
+  form.elements["courseName"].value = score.courseName;
+  form.elements["score"].value = formatScore(score.score);
+  form.elements["semester"].value = score.semester;
+  setStatus(statusId, `已载入成绩记录 ${score.id}，可以更新。`, "success");
+}
+
 // 清空学生表单。
 function resetStudentForm() {
   const form = document.getElementById("studentForm");
@@ -791,6 +995,18 @@ function resetTeacherForm() {
   const form = document.getElementById("teacherForm");
   form.reset();
   setStatus("teacherStatus", "", "");
+}
+
+function resetScoreForm(formId, statusId) {
+  const form = document.getElementById(formId);
+  if (!form) {
+    return;
+  }
+  form.reset();
+  if (form.elements["id"]) {
+    form.elements["id"].value = "";
+  }
+  setStatus(statusId, "", "");
 }
 
 // 登录表单提交。
@@ -988,6 +1204,82 @@ async function onTeacherCreateSubmit(event) {
   }
 }
 
+async function onScoreCreateSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const payload = readScoreForm(form);
+
+  try {
+    await fetchJson("/scores", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    setStatus("scoreStatus", "成绩新增成功。", "success");
+    resetScoreForm("scoreForm", "scoreStatus");
+    await loadAdminData();
+  } catch (error) {
+    setStatus("scoreStatus", error.message, "error");
+  }
+}
+
+async function onScoreUpdateSubmit() {
+  const form = document.getElementById("scoreForm");
+  const payload = readScoreForm(form);
+  if (!form.elements["id"].value) {
+    setStatus("scoreStatus", "请先从左侧选择一条成绩记录。", "error");
+    return;
+  }
+
+  try {
+    await fetchJson(`/scores/${form.elements["id"].value}`, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    });
+    setStatus("scoreStatus", "成绩信息更新成功。", "success");
+    await loadAdminData();
+  } catch (error) {
+    setStatus("scoreStatus", error.message, "error");
+  }
+}
+
+async function onTeacherScoreCreateSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const payload = readScoreForm(form);
+
+  try {
+    await fetchJson("/scores", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    setStatus("teacherScoreStatus", "成绩新增成功。", "success");
+    resetScoreForm("teacherScoreForm", "teacherScoreStatus");
+    await loadUserProfile();
+  } catch (error) {
+    setStatus("teacherScoreStatus", error.message, "error");
+  }
+}
+
+async function onTeacherScoreUpdateSubmit() {
+  const form = document.getElementById("teacherScoreForm");
+  const payload = readScoreForm(form);
+  if (!form.elements["id"].value) {
+    setStatus("teacherScoreStatus", "请先选择一条成绩记录。", "error");
+    return;
+  }
+
+  try {
+    await fetchJson(`/scores/${form.elements["id"].value}`, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    });
+    setStatus("teacherScoreStatus", "成绩信息更新成功。", "success");
+    await loadUserProfile();
+  } catch (error) {
+    setStatus("teacherScoreStatus", error.message, "error");
+  }
+}
+
 // 从学生表单中读取数据并组装成请求体。
 function readStudentForm(form) {
   return {
@@ -1005,6 +1297,15 @@ function readTeacherForm(form) {
     name: form.elements["name"].value.trim(),
     title: form.elements["title"].value.trim(),
     phone: form.elements["phone"].value.trim()
+  };
+}
+
+function readScoreForm(form) {
+  return {
+    studentId: Number(form.elements["studentId"].value),
+    courseName: form.elements["courseName"].value.trim(),
+    score: Number(form.elements["score"].value),
+    semester: form.elements["semester"].value.trim()
   };
 }
 
@@ -1027,4 +1328,16 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function formatScore(value) {
+  const number = Number(value);
+  if (Number.isNaN(number)) {
+    return "";
+  }
+  return number.toFixed(2);
+}
+
+function camelize(value) {
+  return value.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
 }
