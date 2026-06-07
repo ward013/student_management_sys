@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.demo.mapper.RequestTicketMapper">
+
+    <resultMap id="RequestTicketResultMap" type="RequestTicket">
+        <id property="id" column="id"/>
+        <result property="requesterUserId" column="requester_user_id"/>
+        <result property="requesterUsername" column="requester_username"/>
+        <result property="requesterRole" column="requester_role"/>
+        <result property="requesterIdentityType" column="requester_identity_type"/>
+        <result property="requesterIdentityId" column="requester_identity_id"/>
+        <result property="requestType" column="request_type"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="relatedEntityType" column="related_entity_type"/>
+        <result property="relatedEntityId" column="related_entity_id"/>
+        <result property="extraPayloadJson" column="extra_payload_json"/>
+        <result property="status" column="status"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="handledByUserId" column="handled_by_user_id"/>
+        <result property="handledByUsername" column="handled_by_username"/>
+        <result property="handledAt" column="handled_at"/>
+        <result property="handleComment" column="handle_comment"/>
+        <result property="read" column="is_read"/>
+    </resultMap>
+
+    <insert id="insertRequestTicket" parameterType="RequestTicket" useGeneratedKeys="true" keyProperty="id">
+        insert into request_ticket(
+            requester_user_id, requester_username, requester_role, requester_identity_type, requester_identity_id,
+            request_type, title, content, related_entity_type, related_entity_id, extra_payload_json, status,
+            handled_by_user_id, handled_by_username, handled_at, handle_comment
+        )
+        values(
+            #{requesterUserId}, #{requesterUsername}, #{requesterRole}, #{requesterIdentityType}, #{requesterIdentityId},
+            #{requestType}, #{title}, #{content}, #{relatedEntityType}, #{relatedEntityId}, #{extraPayloadJson}, #{status},
+            #{handledByUserId}, #{handledByUsername}, #{handledAt}, #{handleComment}
+        )
+    </insert>
+
+    <select id="findById" resultMap="RequestTicketResultMap">
+        select rt.*, an.is_read
+        from request_ticket rt
+        left join admin_notification an on an.request_id = rt.id and an.receiver_role = 'ADMIN'
+        where rt.id = #{id}
+    </select>
+
+    <select id="findMyRequests" resultMap="RequestTicketResultMap">
+        select rt.*, an.is_read
+        from request_ticket rt
+        left join admin_notification an on an.request_id = rt.id and an.receiver_role = 'ADMIN'
+        where rt.requester_user_id = #{requesterUserId}
+        order by rt.created_at desc, rt.id desc
+    </select>
+
+    <select id="findAdminRequests" resultMap="RequestTicketResultMap">
+        select rt.*, an.is_read
+        from request_ticket rt
+        left join admin_notification an on an.request_id = rt.id and an.receiver_role = 'ADMIN'
+        order by an.is_read asc, rt.created_at desc, rt.id desc
+    </select>
+
+    <update id="updateHandledFields" parameterType="RequestTicket">
+        update request_ticket
+        set status = #{status},
+            handled_by_user_id = #{handledByUserId},
+            handled_by_username = #{handledByUsername},
+            handled_at = #{handledAt},
+            handle_comment = #{handleComment}
+        where id = #{id}
+    </update>
+
+</mapper>

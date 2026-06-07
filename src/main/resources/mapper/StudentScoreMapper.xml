@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.demo.mapper.StudentScoreMapper">
+
+    <select id="findByConditions" resultType="StudentScore">
+        select id, student_id as studentId, course_name as courseName, score, semester,
+               teacher_id as teacherId, teacher_name as teacherName
+        from student_score
+        <where>
+            <if test="studentId != null">
+                student_id = #{studentId}
+            </if>
+            <if test="courseName != null and courseName != ''">
+                and course_name like concat('%', #{courseName}, '%')
+            </if>
+            <if test="semester != null and semester != ''">
+                and semester = #{semester}
+            </if>
+        </where>
+        order by student_id asc, semester desc, id asc
+    </select>
+
+    <select id="findById" resultType="StudentScore">
+        select id, student_id as studentId, course_name as courseName, score, semester,
+               teacher_id as teacherId, teacher_name as teacherName
+        from student_score
+        where id = #{id}
+    </select>
+
+    <insert id="insertScore" parameterType="StudentScore" useGeneratedKeys="true" keyProperty="id">
+        insert into student_score(student_id, course_name, score, semester, teacher_id, teacher_name)
+        values(#{studentId}, #{courseName}, #{score}, #{semester}, #{teacherId}, #{teacherName})
+    </insert>
+
+    <update id="updateScore" parameterType="StudentScore">
+        update student_score
+        set student_id = #{studentId},
+            course_name = #{courseName},
+            score = #{score},
+            semester = #{semester},
+            teacher_id = #{teacherId},
+            teacher_name = #{teacherName}
+        where id = #{id}
+    </update>
+
+</mapper>

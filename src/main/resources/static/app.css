@@ -271,6 +271,44 @@ a {
     margin-top: 18px;
 }
 
+.request-grid {
+    grid-template-columns: minmax(340px, 0.9fr) minmax(0, 1.1fr);
+}
+
+.bell-button {
+    gap: 8px;
+}
+
+.bell-count {
+    min-width: 24px;
+}
+
+.request-content-block {
+    margin-top: 18px;
+    padding: 14px;
+    background: var(--soft);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+}
+
+.request-content {
+    margin: 10px 0 0;
+    white-space: pre-wrap;
+    line-height: 1.7;
+    color: #303133;
+}
+
+.request-payload {
+    margin: 12px 0 0;
+    padding: 12px;
+    overflow-x: auto;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    color: #606266;
+    font: 12px/1.6 Menlo, Monaco, Consolas, monospace;
+}
+
 .section-body {
     padding: 16px;
 }

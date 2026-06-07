@@ -8,6 +8,11 @@ const state = {
   teachers: [],
   currentProfile: null,
   scores: [],
+  adminRequests: [],
+  myRequests: [],
+  unreadRequestCount: 0,
+  selectedAdminRequestId: null,
+  pendingRequestScoreId: null,
   visibleStudents: [],
   visibleScores: []
 };
@@ -161,11 +166,20 @@ function renderDashboard() {
   topbarActions.innerHTML = `
     <span class="badge">${state.currentUser.role === "ADMIN" ? "管理员" : "普通用户"}</span>
     <span class="badge warm">${escapeHtml(state.currentUser.username)}</span>
+    ${state.currentUser.role === "ADMIN" ? `<button class="ghost bell-button" id="requestBellBtn" type="button">铃铛 <span class="badge bell-count">${state.unreadRequestCount}</span></button>` : ""}
     <button class="ghost" id="refreshBtn" type="button">刷新数据</button>
     <button class="secondary" id="logoutBtn" type="button">退出登录</button>
   `;
 
   document.getElementById("logoutBtn").addEventListener("click", onLogout);
+  if (state.currentUser.role === "ADMIN") {
+    document.getElementById("requestBellBtn").addEventListener("click", () => {
+      const center = document.getElementById("requestCenterSection");
+      if (center) {
+        center.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  }
   document.getElementById("refreshBtn").addEventListener("click", async () => {
     if (state.currentUser.role === "ADMIN") {
       await loadAdminData();
@@ -216,6 +230,27 @@ function renderDashboard() {
           <h3>先处理身份，再处理资料</h3>
           <p class="hint">这套面板把账号、身份绑定和学生档案拆开显示，方便先排查账号权限，再定位具体资料记录。</p>
           <div class="control-note">建议流程：先在“所有用户”里确认账号角色和绑定状态，再到学生信息表里维护具体资料。</div>
+        </section>
+      </section>
+      <section class="dashboard-grid" id="requestCenterSection">
+        <section class="section">
+          <div class="section-header">
+            <div>
+              <p class="section-label">消息中心</p>
+              <h3>管理员请求列表</h3>
+            </div>
+            <span class="badge" id="adminUnreadBadge">${state.unreadRequestCount} 条未读</span>
+          </div>
+          <div id="adminRequestTableWrap"></div>
+        </section>
+        <section class="section">
+          <div class="section-header">
+            <div>
+              <p class="section-label">请求详情</p>
+              <h3>审批与处理</h3>
+            </div>
+          </div>
+          <div id="adminRequestDetailWrap"></div>
         </section>
       </section>
       <section class="dashboard-grid">
@@ -422,6 +457,7 @@ function renderDashboard() {
       <section class="section section-tint" id="identityPanel"></section>
     </section>
     <section class="section" id="profilePanel"></section>
+    <section class="section" id="requestPanel"></section>
   `;
 }
 
@@ -445,17 +481,29 @@ function countUnboundUsers() {
 // 管理员加载全部用户、学生、老师数据。
 // 这里用 Promise.all 并发请求，避免面板分三次慢慢刷新。
 async function loadAdminData() {
-  const [usersRes, studentsRes, teachersRes, scoresRes] = await Promise.all([
+  const [usersRes, studentsRes, teachersRes, scoresRes, adminRequestsRes, unreadCountRes] = await Promise.all([
     fetchJson("/users"),
     fetchJson("/students"),
     fetchJson("/teachers"),
-    fetchJson("/scores")
+    fetchJson("/scores"),
+    fetchJson("/admin/requests"),
+    fetchJson("/admin/notifications/unread-count")
   ]);
   state.users = usersRes.data;
   state.students = studentsRes.data;
   state.teachers = teachersRes.data;
   state.scores = scoresRes.data;
+  state.adminRequests = adminRequestsRes.data;
+  state.unreadRequestCount = unreadCountRes.data;
+  if (!state.selectedAdminRequestId && state.adminRequests.length) {
+    state.selectedAdminRequestId = state.adminRequests[0].id;
+  }
+  if (state.selectedAdminRequestId && !state.adminRequests.some(item => item.id === state.selectedAdminRequestId)) {
+    state.selectedAdminRequestId = state.adminRequests[0]?.id ?? null;
+  }
+  syncAdminBellCount();
   renderAdminMetrics();
+  renderAdminRequestCenter();
   renderUsersTable();
   renderStudentsTable();
   renderTeachersTable();
@@ -483,26 +531,36 @@ async function loadUserProfile() {
   renderUserPanelsLoading();
   state.visibleStudents = [];
   state.visibleScores = [];
+  state.myRequests = [];
   if (state.currentUser.identityType === "STUDENT") {
-    const [profileRes, scoresRes] = await Promise.all([
+    const [profileRes, scoresRes, myRequestsRes] = await Promise.all([
       fetchJson("/students/me"),
-      fetchJson("/scores/me")
+      fetchJson("/scores/me"),
+      fetchJson("/requests/my")
     ]);
     state.currentProfile = profileRes.data;
     state.visibleScores = scoresRes.data;
+    state.myRequests = myRequestsRes.data;
   } else if (state.currentUser.identityType === "TEACHER") {
-    const [teacherRes, studentsRes, scoresRes] = await Promise.all([
+    const [teacherRes, studentsRes, scoresRes, myRequestsRes] = await Promise.all([
       fetchJson("/teachers/me"),
       fetchJson("/students"),
-      fetchJson("/scores")
+      fetchJson("/scores"),
+      fetchJson("/requests/my")
     ]);
     state.currentProfile = teacherRes.data;
     state.visibleStudents = studentsRes.data;
     state.visibleScores = scoresRes.data;
+    state.myRequests = myRequestsRes.data;
+  } else if (state.currentUser.identityType === "NONE") {
+    const myRequestsRes = await fetchJson("/requests/my");
+    state.currentProfile = null;
+    state.myRequests = myRequestsRes.data;
   } else {
     state.currentProfile = null;
   }
   renderUserPanels();
+  renderUserRequestPanel();
 }
 
 // 普通用户资料加载过程中的占位内容。
@@ -694,6 +752,8 @@ function renderScoreTableMarkup(scores, actionPrefix, editable) {
     return `<p class="empty-state">暂无成绩数据。</p>`;
   }
 
+  const requestable = actionPrefix === "student-score" || actionPrefix === "teacher-score";
+
   return `
     <div class="table-wrap">
       <table>
@@ -705,7 +765,7 @@ function renderScoreTableMarkup(scores, actionPrefix, editable) {
             <th>成绩</th>
             <th>学期</th>
             <th>任课老师</th>
-            ${editable ? "<th>操作</th>" : ""}
+            ${(editable || requestable) ? "<th>操作</th>" : ""}
           </tr>
         </thead>
         <tbody>
@@ -717,13 +777,230 @@ function renderScoreTableMarkup(scores, actionPrefix, editable) {
               <td>${formatScore(score.score)}</td>
               <td>${escapeHtml(score.semester)}</td>
               <td>${escapeHtml(score.teacherName || "-")}</td>
-              ${editable ? `
+              ${(editable || requestable) ? `
                 <td>
                   <div class="table-actions">
-                    <button class="ghost" type="button" data-${actionPrefix}-edit="${score.id}">填入表单</button>
+                    ${editable ? `<button class="ghost" type="button" data-${actionPrefix}-edit="${score.id}">填入表单</button>` : ""}
+                    ${requestable ? `<button class="secondary" type="button" data-${actionPrefix}-request="${score.id}">用于请求</button>` : ""}
                   </div>
                 </td>
               ` : ""}
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderAdminRequestCenter() {
+  renderAdminRequestList();
+  renderAdminRequestDetail();
+}
+
+function renderAdminRequestList() {
+  const wrap = document.getElementById("adminRequestTableWrap");
+  if (!wrap) {
+    return;
+  }
+  if (!state.adminRequests.length) {
+    wrap.innerHTML = `<p class="empty-state">当前暂无请求记录。</p>`;
+    return;
+  }
+
+  wrap.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>未读</th>
+            <th>标题</th>
+            <th>发起人</th>
+            <th>类型</th>
+            <th>状态</th>
+            <th>时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${state.adminRequests.map(request => `
+            <tr>
+              <td>${request.read === false ? '<span class="badge warm">未读</span>' : '<span class="badge">已读</span>'}</td>
+              <td>${escapeHtml(request.title)}</td>
+              <td>${escapeHtml(request.requesterUsername)} / ${escapeHtml(request.requesterIdentityType || "NONE")}</td>
+              <td>${escapeHtml(request.requestType)}</td>
+              <td>${escapeHtml(request.status)}</td>
+              <td>${formatDateTime(request.createdAt)}</td>
+              <td>
+                <div class="table-actions">
+                  <button class="ghost" type="button" data-admin-request-id="${request.id}">查看详情</button>
+                </div>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  wrap.querySelectorAll("[data-admin-request-id]").forEach(button => {
+    button.addEventListener("click", async () => {
+      const requestId = Number(button.dataset.adminRequestId);
+      state.selectedAdminRequestId = requestId;
+      const selected = state.adminRequests.find(item => item.id === requestId);
+      if (selected && selected.read === false) {
+        await markAdminRequestRead(requestId);
+      }
+      renderAdminRequestDetail();
+    });
+  });
+}
+
+function renderAdminRequestDetail() {
+  const wrap = document.getElementById("adminRequestDetailWrap");
+  if (!wrap) {
+    return;
+  }
+  const selected = state.adminRequests.find(item => item.id === state.selectedAdminRequestId);
+  if (!selected) {
+    wrap.innerHTML = `<p class="empty-state">请选择左侧一条请求查看详情。</p>`;
+    return;
+  }
+
+  wrap.innerHTML = `
+    <div class="meta-list">
+      <div class="meta-item"><span class="meta-key">请求ID</span><span class="meta-value">${selected.id}</span></div>
+      <div class="meta-item"><span class="meta-key">发起时间</span><span class="meta-value">${formatDateTime(selected.createdAt)}</span></div>
+      <div class="meta-item"><span class="meta-key">发起人</span><span class="meta-value">${escapeHtml(selected.requesterUsername)}</span></div>
+      <div class="meta-item"><span class="meta-key">身份类型</span><span class="meta-value">${escapeHtml(selected.requesterIdentityType || "NONE")}</span></div>
+      <div class="meta-item"><span class="meta-key">关联工号</span><span class="meta-value">${selected.requesterIdentityId ?? "-"}</span></div>
+      <div class="meta-item"><span class="meta-key">请求类型</span><span class="meta-value">${escapeHtml(selected.requestType)}</span></div>
+      <div class="meta-item"><span class="meta-key">当前状态</span><span class="meta-value">${escapeHtml(selected.status)}</span></div>
+      <div class="meta-item"><span class="meta-key">关联对象</span><span class="meta-value">${escapeHtml(selected.relatedEntityType || "-")} / ${selected.relatedEntityId ?? "-"}</span></div>
+      <div class="meta-item"><span class="meta-key">处理人</span><span class="meta-value">${escapeHtml(selected.handledByUsername || "-")}</span></div>
+      <div class="meta-item"><span class="meta-key">处理时间</span><span class="meta-value">${formatDateTime(selected.handledAt)}</span></div>
+    </div>
+    <div class="request-content-block">
+      <p class="section-label">请求标题</p>
+      <h3>${escapeHtml(selected.title)}</h3>
+      <p class="request-content">${escapeHtml(selected.content)}</p>
+      ${selected.extraPayloadJson ? `<pre class="request-payload">${escapeHtml(selected.extraPayloadJson)}</pre>` : ""}
+      ${selected.handleComment ? `<p class="hint">处理意见：${escapeHtml(selected.handleComment)}</p>` : ""}
+    </div>
+    <form id="adminRequestHandleForm" class="stack score-form-inline">
+      <label>处理状态
+        <select name="status">
+          <option value="PROCESSING" ${selected.status === "PROCESSING" ? "selected" : ""}>PROCESSING</option>
+          <option value="APPROVED" ${selected.status === "APPROVED" ? "selected" : ""}>APPROVED</option>
+          <option value="REJECTED" ${selected.status === "REJECTED" ? "selected" : ""}>REJECTED</option>
+          <option value="PENDING" ${selected.status === "PENDING" ? "selected" : ""}>PENDING</option>
+        </select>
+      </label>
+      <label>处理意见
+        <textarea name="handleComment" placeholder="请输入审批说明">${escapeHtml(selected.handleComment || "")}</textarea>
+      </label>
+      <div class="button-row">
+        <button class="primary" type="submit">保存处理结果</button>
+        <button class="ghost" type="button" id="markRequestReadBtn">标记已读</button>
+      </div>
+      <div class="status" id="adminRequestStatus"></div>
+    </form>
+  `;
+
+  document.getElementById("adminRequestHandleForm").addEventListener("submit", onAdminRequestHandleSubmit);
+  document.getElementById("markRequestReadBtn").addEventListener("click", async () => {
+    await markAdminRequestRead(selected.id);
+    setStatus("adminRequestStatus", "已标记为已读。", "success");
+    renderAdminRequestDetail();
+  });
+}
+
+function renderUserRequestPanel() {
+  const panel = document.getElementById("requestPanel");
+  if (!panel || !state.currentUser || state.currentUser.role === "ADMIN") {
+    return;
+  }
+
+  const requestType = state.currentUser.identityType === "STUDENT" ? "GRADE_REVIEW" : state.currentUser.identityType === "TEACHER" ? "GRADE_UPDATE" : "GENERAL_APPLICATION";
+  panel.innerHTML = `
+    <div class="section-header">
+      <div>
+        <p class="section-label">成绩请求</p>
+        <h3>提交请求与查看处理状态</h3>
+      </div>
+    </div>
+    <div class="dashboard-grid request-grid">
+      <section class="section plain">
+        <div class="section-body">
+          <form id="requestForm" class="stack">
+            <label>请求类型
+              <select name="requestType">
+                <option value="GRADE_REVIEW" ${requestType === "GRADE_REVIEW" ? "selected" : ""}>GRADE_REVIEW</option>
+                <option value="GRADE_UPDATE" ${requestType === "GRADE_UPDATE" ? "selected" : ""}>GRADE_UPDATE</option>
+                <option value="GENERAL_APPLICATION" ${requestType === "GENERAL_APPLICATION" ? "selected" : ""}>GENERAL_APPLICATION</option>
+              </select>
+            </label>
+            <label>关联成绩记录ID
+              <input name="relatedEntityId" type="number" placeholder="例如 1，可从成绩表中选择">
+            </label>
+            <label>请求标题
+              <input name="title" placeholder="例如 申请复核高等数学成绩" required>
+            </label>
+            <label>请求内容
+              <textarea name="content" placeholder="请描述具体原因、原成绩、目标成绩等信息" required></textarea>
+            </label>
+            <div class="button-row">
+              <button class="primary" type="submit">提交请求</button>
+              <button class="ghost" type="button" id="resetRequestFormBtn">清空表单</button>
+            </div>
+            <div class="status" id="requestStatus"></div>
+          </form>
+        </div>
+      </section>
+      <section class="section plain">
+        <div class="card-titlebar">
+          <div>
+            <p class="section-label">我的请求</p>
+            <h3>请求处理进度</h3>
+          </div>
+          <span class="badge">${state.myRequests.length} 条</span>
+        </div>
+        <div class="section-body">
+          ${renderMyRequestTable()}
+        </div>
+      </section>
+    </div>
+  `;
+
+  document.getElementById("requestForm").addEventListener("submit", onRequestSubmit);
+  document.getElementById("resetRequestFormBtn").addEventListener("click", resetRequestForm);
+}
+
+function renderMyRequestTable() {
+  if (!state.myRequests.length) {
+    return `<p class="empty-state">当前还没有提交过请求。</p>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>标题</th>
+            <th>类型</th>
+            <th>状态</th>
+            <th>关联成绩</th>
+            <th>时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${state.myRequests.map(request => `
+            <tr>
+              <td>${escapeHtml(request.title)}</td>
+              <td>${escapeHtml(request.requestType)}</td>
+              <td>${escapeHtml(request.status)}</td>
+              <td>${request.relatedEntityId ?? "-"}</td>
+              <td>${formatDateTime(request.createdAt)}</td>
             </tr>
           `).join("")}
         </tbody>
@@ -916,6 +1193,12 @@ function renderScoresTable(containerId, scores, actionPrefix, editable) {
         return;
       }
       fillScoreForm("teacherScoreForm", scoreId, state.visibleScores, "teacherScoreStatus");
+    });
+  });
+  wrap.querySelectorAll(`[data-${actionPrefix}-request]`).forEach(button => {
+    button.addEventListener("click", () => {
+      const scoreId = Number(button.dataset[`${camelize(actionPrefix)}Request`]);
+      primeRequestForm(scoreId);
     });
   });
 }
@@ -1280,6 +1563,68 @@ async function onTeacherScoreUpdateSubmit() {
   }
 }
 
+async function onRequestSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const requestType = form.elements["requestType"].value;
+  const relatedEntityId = form.elements["relatedEntityId"].value ? Number(form.elements["relatedEntityId"].value) : null;
+
+  try {
+    await fetchJson("/requests", {
+      method: "POST",
+      body: JSON.stringify({
+        requestType,
+        title: form.elements["title"].value.trim(),
+        content: form.elements["content"].value.trim(),
+        relatedEntityType: relatedEntityId ? "STUDENT_SCORE" : null,
+        relatedEntityId,
+        extraPayloadJson: buildRequestPayloadJson(requestType, relatedEntityId)
+      })
+    });
+    setStatus("requestStatus", "请求提交成功。", "success");
+    resetRequestForm();
+    await loadUserProfile();
+  } catch (error) {
+    setStatus("requestStatus", error.message, "error");
+  }
+}
+
+async function onAdminRequestHandleSubmit(event) {
+  event.preventDefault();
+  const selected = state.adminRequests.find(item => item.id === state.selectedAdminRequestId);
+  if (!selected) {
+    return;
+  }
+  const form = event.currentTarget;
+
+  try {
+    await fetchJson(`/admin/requests/${selected.id}/handle`, {
+      method: "PUT",
+      body: JSON.stringify({
+        status: form.elements["status"].value,
+        handleComment: form.elements["handleComment"].value.trim()
+      })
+    });
+    setStatus("adminRequestStatus", "请求处理成功。", "success");
+    await loadAdminData();
+  } catch (error) {
+    setStatus("adminRequestStatus", error.message, "error");
+  }
+}
+
+async function markAdminRequestRead(requestId) {
+  await fetchJson(`/admin/requests/${requestId}/read`, {
+    method: "PUT"
+  });
+  const request = state.adminRequests.find(item => item.id === requestId);
+  if (request) {
+    request.read = true;
+  }
+  state.unreadRequestCount = Math.max(0, state.unreadRequestCount - 1);
+  syncAdminBellCount();
+  renderAdminRequestList();
+}
+
 // 从学生表单中读取数据并组装成请求体。
 function readStudentForm(form) {
   return {
@@ -1307,6 +1652,60 @@ function readScoreForm(form) {
     score: Number(form.elements["score"].value),
     semester: form.elements["semester"].value.trim()
   };
+}
+
+function resetRequestForm() {
+  const form = document.getElementById("requestForm");
+  if (!form) {
+    return;
+  }
+  form.reset();
+  const defaultType = state.currentUser?.identityType === "STUDENT" ? "GRADE_REVIEW" : state.currentUser?.identityType === "TEACHER" ? "GRADE_UPDATE" : "GENERAL_APPLICATION";
+  form.elements["requestType"].value = defaultType;
+  state.pendingRequestScoreId = null;
+  setStatus("requestStatus", "", "");
+}
+
+function primeRequestForm(scoreId) {
+  const form = document.getElementById("requestForm");
+  if (!form) {
+    return;
+  }
+  state.pendingRequestScoreId = scoreId;
+  form.elements["relatedEntityId"].value = scoreId;
+  const scorePool = state.visibleScores.length ? state.visibleScores : state.scores;
+  const score = scorePool.find(item => item.id === scoreId);
+  if (score) {
+    const requestType = state.currentUser?.identityType === "TEACHER" ? "GRADE_UPDATE" : "GRADE_REVIEW";
+    form.elements["requestType"].value = requestType;
+    form.elements["title"].value = `${requestType === "GRADE_UPDATE" ? "申请更正" : "申请复核"} ${score.courseName} 成绩`;
+    form.elements["content"].value = `关联成绩记录 ${score.id}，学生工号 ${score.studentId}，课程 ${score.courseName}，当前成绩 ${formatScore(score.score)}，学期 ${score.semester}。请管理员审核。`;
+    setStatus("requestStatus", `已载入成绩记录 ${score.id}，可以直接提交请求。`, "success");
+  }
+  const panel = document.getElementById("requestPanel");
+  if (panel) {
+    panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function buildRequestPayloadJson(requestType, relatedEntityId) {
+  if (!relatedEntityId) {
+    return null;
+  }
+  const scorePool = state.visibleScores.length ? state.visibleScores : state.scores;
+  const score = scorePool.find(item => item.id === relatedEntityId);
+  if (!score) {
+    return null;
+  }
+  return JSON.stringify({
+    requestType,
+    scoreId: score.id,
+    studentId: score.studentId,
+    courseName: score.courseName,
+    score: Number(score.score),
+    semester: score.semester,
+    teacherName: score.teacherName || null
+  });
 }
 
 // 统一设置页面上的提示信息。
@@ -1338,6 +1737,25 @@ function formatScore(value) {
   return number.toFixed(2);
 }
 
+function formatDateTime(value) {
+  if (!value) {
+    return "-";
+  }
+  const normalized = String(value).replace("T", " ");
+  return normalized.length > 19 ? normalized.slice(0, 19) : normalized;
+}
+
 function camelize(value) {
   return value.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+function syncAdminBellCount() {
+  const countNode = document.querySelector(".bell-count");
+  if (countNode) {
+    countNode.textContent = String(state.unreadRequestCount);
+  }
+  const adminUnreadBadge = document.getElementById("adminUnreadBadge");
+  if (adminUnreadBadge) {
+    adminUnreadBadge.textContent = `${state.unreadRequestCount} 条未读`;
+  }
 }
