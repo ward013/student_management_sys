@@ -3,6 +3,7 @@
 // 这样各个渲染函数只从 state 取数据，不需要彼此传很多参数。
 const state = {
   currentUser: null,
+  currentPage: "overview",
   users: [],
   students: [],
   teachers: [],
@@ -27,6 +28,7 @@ document.addEventListener("DOMContentLoaded", init);
 
 // 页面启动入口：先渲染登录页，再尝试恢复已有 Session。
 async function init() {
+  window.addEventListener("hashchange", onHashChange);
   renderAuthView();
   await refreshSession();
 }
@@ -87,6 +89,9 @@ function renderAuthView() {
   authView.classList.remove("hidden");
   appView.classList.add("hidden");
   topbarActions.innerHTML = `<span class="badge">未登录</span>`;
+  document.querySelectorAll(".side-nav [data-page], .side-nav [data-nav-group]").forEach(node => {
+    node.classList.add("hidden");
+  });
   authView.innerHTML = `
     <section class="panel section-tint auth-shell">
       <div>
@@ -158,11 +163,100 @@ function renderAuthView() {
   });
 }
 
+function onHashChange() {
+  if (!state.currentUser) {
+    return;
+  }
+  const page = getPageFromHash();
+  if (page === state.currentPage) {
+    return;
+  }
+  state.currentPage = page;
+  ensureValidPage();
+  renderDashboard();
+  if (state.currentUser.role === "ADMIN") {
+    renderAdminMetrics();
+    renderAdminRequestCenter();
+    renderUsersTable();
+    renderStudentsTable();
+    renderTeachersTable();
+    renderScoresTable("scoreTableWrap", state.scores, "score", true);
+  } else {
+    renderUserPanels();
+    renderUserRequestPanel();
+  }
+}
+
+function getPageFromHash() {
+  const hash = window.location.hash.replace(/^#/, "").trim();
+  return hash || "overview";
+}
+
+function getAllowedPages() {
+  if (!state.currentUser) {
+    return ["overview"];
+  }
+  if (state.currentUser.role === "ADMIN") {
+    return ["overview", "requests", "users", "students", "teachers", "scores"];
+  }
+  const pages = ["overview", "requests"];
+  if (state.currentUser.identityType === "STUDENT") {
+    pages.push("scores");
+  }
+  if (state.currentUser.identityType === "TEACHER") {
+    pages.push("students", "scores");
+  }
+  return pages;
+}
+
+function ensureValidPage() {
+  const allowedPages = getAllowedPages();
+  if (!allowedPages.includes(state.currentPage)) {
+    state.currentPage = allowedPages[0] || "overview";
+  }
+  if (window.location.hash !== `#${state.currentPage}`) {
+    window.location.hash = state.currentPage;
+  }
+}
+
+function getPageTitle(page) {
+  const titles = {
+    overview: "概览",
+    requests: "请求中心",
+    users: "用户管理",
+    students: "学生管理",
+    teachers: "教师管理",
+    scores: "成绩管理"
+  };
+  return titles[page] || "控制台";
+}
+
+function setupNavigation() {
+  const allowedPages = getAllowedPages();
+  const navItems = document.querySelectorAll(".side-nav [data-page]");
+  navItems.forEach(item => {
+    const page = item.dataset.page;
+    const visible = allowedPages.includes(page);
+    item.classList.toggle("hidden", !visible);
+    item.classList.toggle("active", visible && page === state.currentPage);
+  });
+
+  const navGroups = document.querySelectorAll(".side-nav [data-nav-group]");
+  navGroups.forEach(group => {
+    const page = group.dataset.navGroup;
+    const visible = allowedPages.includes(page);
+    group.classList.toggle("hidden", !visible);
+  });
+}
+
 // 根据当前用户角色渲染管理员视图或普通用户视图。
 // 管理员看到的是完整的管理台，普通用户看到的是自己的身份与资料。
 function renderDashboard() {
   authView.classList.add("hidden");
   appView.classList.remove("hidden");
+  state.currentPage = getPageFromHash();
+  ensureValidPage();
+  setupNavigation();
   topbarActions.innerHTML = `
     <span class="badge">${state.currentUser.role === "ADMIN" ? "管理员" : "普通用户"}</span>
     <span class="badge warm">${escapeHtml(state.currentUser.username)}</span>
@@ -174,11 +268,12 @@ function renderDashboard() {
   document.getElementById("logoutBtn").addEventListener("click", onLogout);
   if (state.currentUser.role === "ADMIN") {
     document.getElementById("requestBellBtn").addEventListener("click", () => {
-      const center = document.getElementById("requestCenterSection");
-      if (center) {
-        center.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+      window.location.hash = "requests";
     });
+  }
+  const breadcrumb = document.querySelector(".breadcrumb strong");
+  if (breadcrumb) {
+    breadcrumb.textContent = getPageTitle(state.currentPage);
   }
   document.getElementById("refreshBtn").addEventListener("click", async () => {
     if (state.currentUser.role === "ADMIN") {
@@ -215,7 +310,29 @@ function renderDashboard() {
   `;
 
   if (state.currentUser.role === "ADMIN") {
-    appView.innerHTML = `
+    appView.innerHTML = renderAdminPage(userInfo);
+    bindAdminPageEvents();
+    return;
+  }
+
+  appView.innerHTML = renderUserPage(userInfo);
+}
+
+// 渲染摘要卡片。
+function renderSummaryCard(label, value, caption, tone = "") {
+  const toneClass = tone ? ` ${tone}` : "";
+  return `
+    <section class="summary-card${toneClass}">
+      <p class="section-label">${label}</p>
+      <div class="summary-value">${value}</div>
+      <div class="summary-caption">${caption}</div>
+    </section>
+  `;
+}
+
+function renderAdminPage(userInfo) {
+  if (state.currentPage === "overview") {
+    return `
       <section class="summary-strip" id="adminSummaryStrip">
         ${renderSummaryCard("用户总数", state.users.length, "当前系统里的登录账号", "warm")}
         ${renderSummaryCard("学生总数", state.students.length, "可绑定学生身份的记录")}
@@ -228,11 +345,16 @@ function renderDashboard() {
         <section class="section">
           <p class="section-label">控制台摘要</p>
           <h3>先处理身份，再处理资料</h3>
-          <p class="hint">这套面板把账号、身份绑定和学生档案拆开显示，方便先排查账号权限，再定位具体资料记录。</p>
-          <div class="control-note">建议流程：先在“所有用户”里确认账号角色和绑定状态，再到学生信息表里维护具体资料。</div>
+          <p class="hint">现在每个模块都拆成独立页面，常用流程会更清楚：先看概览，再按模块进入用户、学生、教师、成绩或请求中心。</p>
+          <div class="control-note">建议流程：先在“请求中心”处理待办，再根据需要跳到学生、教师或成绩页面维护具体数据。</div>
         </section>
       </section>
-      <section class="dashboard-grid" id="requestCenterSection">
+    `;
+  }
+
+  if (state.currentPage === "requests") {
+    return `
+      <section class="request-center-stack" id="requestCenterSection">
         <section class="section">
           <div class="section-header">
             <div>
@@ -253,6 +375,11 @@ function renderDashboard() {
           <div id="adminRequestDetailWrap"></div>
         </section>
       </section>
+    `;
+  }
+
+  if (state.currentPage === "users") {
+    return `
       <section class="dashboard-grid">
         <section class="section">
           <div class="section-header">
@@ -305,6 +432,11 @@ function renderDashboard() {
           </form>
         </section>
       </section>
+    `;
+  }
+
+  if (state.currentPage === "students") {
+    return `
       <section class="dashboard-grid">
         <section class="section">
           <div class="section-header">
@@ -318,8 +450,8 @@ function renderDashboard() {
         <section class="section">
           <div class="section-header">
             <div>
-              <p class="section-label">筛选搜索</p>
-              <h3>学生维护表单</h3>
+              <p class="section-label">维护表单</p>
+              <h3>学生维护</h3>
             </div>
           </div>
           <form id="studentForm" class="stack">
@@ -346,6 +478,11 @@ function renderDashboard() {
           </form>
         </section>
       </section>
+    `;
+  }
+
+  if (state.currentPage === "teachers") {
+    return `
       <section class="dashboard-grid">
         <section class="section">
           <div class="section-header">
@@ -359,8 +496,8 @@ function renderDashboard() {
         <section class="section">
           <div class="section-header">
             <div>
-              <p class="section-label">录入窗口</p>
-              <h3>老师维护表单</h3>
+              <p class="section-label">维护表单</p>
+              <h3>老师维护</h3>
             </div>
           </div>
           <form id="teacherForm" class="stack">
@@ -387,66 +524,85 @@ function renderDashboard() {
           </form>
         </section>
       </section>
-      <section class="dashboard-grid">
-        <section class="section">
-          <div class="section-header">
-            <div>
-              <p class="section-label">数据列表</p>
-              <h3>学生成绩表</h3>
-            </div>
-          </div>
-          <div id="scoreTableWrap"></div>
-        </section>
-        <section class="section">
-          <div class="section-header">
-            <div>
-              <p class="section-label">成绩维护</p>
-              <h3>成绩维护表单</h3>
-            </div>
-          </div>
-          <form id="scoreForm" class="stack">
-            <input name="id" type="hidden">
-            <label>学生工号
-              <input name="studentId" type="number" placeholder="例如 1" required>
-            </label>
-            <div class="row">
-              <label>课程名称
-                <input name="courseName" placeholder="例如 高等数学" required>
-              </label>
-              <label>成绩
-                <input name="score" type="number" step="0.01" min="0" max="100" placeholder="0 - 100" required>
-              </label>
-            </div>
-            <label>学期
-              <input name="semester" placeholder="例如 2026-春" required>
-            </label>
-            <div class="button-row">
-              <button class="primary" type="submit">新增成绩</button>
-              <button class="secondary" type="button" id="updateScoreBtn">更新当前成绩</button>
-              <button class="ghost" type="button" id="resetScoreFormBtn">清空表单</button>
-            </div>
-            <div class="status" id="scoreStatus"></div>
-          </form>
-        </section>
-      </section>
     `;
-
-    // 管理员面板里的表单和按钮，都在对应区域渲染完成后统一绑定事件。
-    document.getElementById("userEditForm").addEventListener("submit", onUserEditSubmit);
-    document.getElementById("studentForm").addEventListener("submit", onStudentCreateSubmit);
-    document.getElementById("updateStudentBtn").addEventListener("click", onStudentUpdateSubmit);
-    document.getElementById("resetStudentFormBtn").addEventListener("click", resetStudentForm);
-    document.getElementById("teacherForm").addEventListener("submit", onTeacherCreateSubmit);
-    document.getElementById("updateTeacherBtn").addEventListener("click",onTeacherUpadateSubmit);
-    document.getElementById("resetTeacherFormBtn").addEventListener("click", resetTeacherForm);
-    document.getElementById("scoreForm").addEventListener("submit", onScoreCreateSubmit);
-    document.getElementById("updateScoreBtn").addEventListener("click", onScoreUpdateSubmit);
-    document.getElementById("resetScoreFormBtn").addEventListener("click", () => resetScoreForm("scoreForm", "scoreStatus"));
-    return;
   }
 
-  appView.innerHTML = `
+  return `
+    <section class="dashboard-grid">
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <p class="section-label">数据列表</p>
+            <h3>学生成绩表</h3>
+          </div>
+        </div>
+        <div id="scoreTableWrap"></div>
+      </section>
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <p class="section-label">成绩维护</p>
+            <h3>成绩维护表单</h3>
+          </div>
+        </div>
+        <form id="scoreForm" class="stack">
+          <input name="id" type="hidden">
+          <label>学生工号
+            <input name="studentId" type="number" placeholder="例如 1" required>
+          </label>
+          <div class="row">
+            <label>课程名称
+              <input name="courseName" placeholder="例如 高等数学" required>
+            </label>
+            <label>成绩
+              <input name="score" type="number" step="0.01" min="0" max="100" placeholder="0 - 100" required>
+            </label>
+          </div>
+          <label>学期
+            <input name="semester" placeholder="例如 2026-春" required>
+          </label>
+          <div class="button-row">
+            <button class="primary" type="submit">新增成绩</button>
+            <button class="secondary" type="button" id="updateScoreBtn">更新当前成绩</button>
+            <button class="ghost" type="button" id="resetScoreFormBtn">清空表单</button>
+          </div>
+          <div class="status" id="scoreStatus"></div>
+        </form>
+      </section>
+    </section>
+  `;
+}
+
+function renderUserPage(userInfo) {
+  if (state.currentPage === "requests") {
+    return `<section class="section" id="requestPanel"></section>`;
+  }
+
+  if (state.currentPage === "students" && state.currentUser.identityType === "TEACHER") {
+    return `
       <section class="summary-strip">
+        ${renderSummaryCard("账号角色", escapeHtml(state.currentUser.role), "当前登录视角", "warm")}
+        ${renderSummaryCard("身份类型", escapeHtml(state.currentUser.identityType || "NONE"), "决定可访问的数据范围")}
+        ${renderSummaryCard("可见学生", state.visibleStudents.length, "教师可查看的学生数量")}
+      </section>
+      <section class="section" id="profilePanel"></section>
+    `;
+  }
+
+  if (state.currentPage === "scores") {
+    return `
+      <section class="summary-strip">
+        ${renderSummaryCard("账号角色", escapeHtml(state.currentUser.role), "当前登录视角", "warm")}
+        ${renderSummaryCard("身份类型", escapeHtml(state.currentUser.identityType || "NONE"), "决定可访问的数据范围")}
+        ${renderSummaryCard("成绩数量", state.visibleScores.length, "当前页面可见成绩记录")}
+      </section>
+      <section class="section" id="profilePanel"></section>
+      <section class="section" id="requestPanel"></section>
+    `;
+  }
+
+  return `
+    <section class="summary-strip">
       ${renderSummaryCard("账号角色", escapeHtml(state.currentUser.role), "当前登录视角", "warm")}
       ${renderSummaryCard("身份类型", escapeHtml(state.currentUser.identityType || "NONE"), "决定可访问的数据范围")}
       ${renderSummaryCard("绑定工号", state.currentUser.identityId ?? "未绑定", "学生或老师工号")}
@@ -457,20 +613,34 @@ function renderDashboard() {
       <section class="section section-tint" id="identityPanel"></section>
     </section>
     <section class="section" id="profilePanel"></section>
-    <section class="section" id="requestPanel"></section>
   `;
 }
 
-// 渲染摘要卡片。
-function renderSummaryCard(label, value, caption, tone = "") {
-  const toneClass = tone ? ` ${tone}` : "";
-  return `
-    <section class="summary-card${toneClass}">
-      <p class="section-label">${label}</p>
-      <div class="summary-value">${value}</div>
-      <div class="summary-caption">${caption}</div>
-    </section>
-  `;
+function bindAdminPageEvents() {
+  if (state.currentPage === "requests") {
+    return;
+  }
+  if (state.currentPage === "users") {
+    document.getElementById("userEditForm").addEventListener("submit", onUserEditSubmit);
+    return;
+  }
+  if (state.currentPage === "students") {
+    document.getElementById("studentForm").addEventListener("submit", onStudentCreateSubmit);
+    document.getElementById("updateStudentBtn").addEventListener("click", onStudentUpdateSubmit);
+    document.getElementById("resetStudentFormBtn").addEventListener("click", resetStudentForm);
+    return;
+  }
+  if (state.currentPage === "teachers") {
+    document.getElementById("teacherForm").addEventListener("submit", onTeacherCreateSubmit);
+    document.getElementById("updateTeacherBtn").addEventListener("click", onTeacherUpadateSubmit);
+    document.getElementById("resetTeacherFormBtn").addEventListener("click", resetTeacherForm);
+    return;
+  }
+  if (state.currentPage === "scores") {
+    document.getElementById("scoreForm").addEventListener("submit", onScoreCreateSubmit);
+    document.getElementById("updateScoreBtn").addEventListener("click", onScoreUpdateSubmit);
+    document.getElementById("resetScoreFormBtn").addEventListener("click", () => resetScoreForm("scoreForm", "scoreStatus"));
+  }
 }
 
 // 统计未绑定身份的普通用户数量，供管理员快速查看系统状态。
@@ -579,6 +749,42 @@ function renderUserPanelsLoading() {
 function renderUserPanels() {
   const identityPanel = document.getElementById("identityPanel");
   const profilePanel = document.getElementById("profilePanel");
+  if (state.currentPage === "requests") {
+    return;
+  }
+
+  if (state.currentPage === "students" && state.currentUser.identityType === "TEACHER") {
+    if (!profilePanel) {
+      return;
+    }
+    profilePanel.innerHTML = renderTeacherStudentSection();
+    return;
+  }
+
+  if (state.currentPage === "scores") {
+    if (!profilePanel) {
+      return;
+    }
+    if (state.currentUser.identityType === "STUDENT") {
+      profilePanel.innerHTML = renderStudentScoreSection();
+      renderScoresTable("studentScoreTableWrap", state.visibleScores, "student-score", false);
+      return;
+    }
+    if (state.currentUser.identityType === "TEACHER") {
+      profilePanel.innerHTML = renderTeacherScoreSection();
+      renderScoresTable("teacherScoreTableWrap", state.visibleScores, "teacher-score", true);
+      const teacherScoreForm = document.getElementById("teacherScoreForm");
+      if (teacherScoreForm) {
+        teacherScoreForm.addEventListener("submit", onTeacherScoreCreateSubmit);
+        document.getElementById("updateTeacherScoreBtn").addEventListener("click", onTeacherScoreUpdateSubmit);
+        document.getElementById("resetTeacherScoreFormBtn").addEventListener("click", () => resetScoreForm("teacherScoreForm", "teacherScoreStatus"));
+      }
+      return;
+    }
+    profilePanel.innerHTML = `<p class="empty-state">当前账号还没有可显示的成绩页面内容。</p>`;
+    return;
+  }
+
   if (!identityPanel || !profilePanel) {
     return;
   }
@@ -624,7 +830,6 @@ function renderUserPanels() {
       ["年龄", state.currentProfile.age],
       ["手机号", state.currentProfile.phone]
     ]) + renderStudentScoreSection();
-    renderScoresTable("studentScoreTableWrap", state.visibleScores, "student-score", false);
     return;
   }
 
@@ -634,15 +839,6 @@ function renderUserPanels() {
     ["职称", state.currentProfile.title],
     ["手机号", state.currentProfile.phone]
   ]) + renderTeacherStudentSection() + renderTeacherScoreSection();
-
-  renderScoresTable("teacherScoreTableWrap", state.visibleScores, "teacher-score", true);
-
-  const teacherScoreForm = document.getElementById("teacherScoreForm");
-  if (teacherScoreForm) {
-    teacherScoreForm.addEventListener("submit", onTeacherScoreCreateSubmit);
-    document.getElementById("updateTeacherScoreBtn").addEventListener("click", onTeacherScoreUpdateSubmit);
-    document.getElementById("resetTeacherScoreFormBtn").addEventListener("click", () => resetScoreForm("teacherScoreForm", "teacherScoreStatus"));
-  }
 }
 
 function renderStudentScoreSection() {
@@ -974,6 +1170,11 @@ function renderUserRequestPanel() {
 
   document.getElementById("requestForm").addEventListener("submit", onRequestSubmit);
   document.getElementById("resetRequestFormBtn").addEventListener("click", resetRequestForm);
+  if (state.pendingRequestScoreId) {
+    const scoreId = state.pendingRequestScoreId;
+    state.pendingRequestScoreId = null;
+    primeRequestForm(scoreId);
+  }
 }
 
 function renderMyRequestTable() {
@@ -1669,6 +1870,8 @@ function resetRequestForm() {
 function primeRequestForm(scoreId) {
   const form = document.getElementById("requestForm");
   if (!form) {
+    state.pendingRequestScoreId = scoreId;
+    window.location.hash = "requests";
     return;
   }
   state.pendingRequestScoreId = scoreId;

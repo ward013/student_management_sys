@@ -5,8 +5,10 @@ import java.time.LocalDateTime;
 // AdminNotification 保存管理员的消息提醒状态。
 public class AdminNotification {
     private Long id;
+    // requestId 指向 request_ticket 表中的一条请求。
     private Long requestId;
     private String receiverRole;
+    // read 表示这条请求对应的管理员通知是否已经被阅读。
     private Boolean read;
     private LocalDateTime createdAt;
     private LocalDateTime readAt;

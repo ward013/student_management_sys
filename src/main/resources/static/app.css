@@ -275,6 +275,13 @@ a {
     grid-template-columns: minmax(340px, 0.9fr) minmax(0, 1.1fr);
 }
 
+.request-center-stack {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    align-items: start;
+}
+
 .bell-button {
     gap: 8px;
 }

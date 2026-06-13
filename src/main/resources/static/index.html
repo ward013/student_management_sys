@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>学生管理系统</title>
-    <link rel="stylesheet" href="/app.css">
+    <link rel="stylesheet" href="/app.css?v=20260608-1">
 </head>
 <body>
 <div class="admin-shell">
@@ -17,52 +17,53 @@
             </div>
         </div>
         <nav class="side-nav" aria-label="主导航">
-            <a class="nav-item active" href="#">
+            <a class="nav-item active" href="#overview" data-page="overview">
                 <span class="nav-icon">⌂</span>
                 <span>首页</span>
             </a>
-            <div class="nav-group">
+            <div class="nav-group" data-nav-group="users">
                 <div class="nav-group-title">
                     <span class="nav-icon">▦</span>
                     <span>账号</span>
                     <span class="nav-caret">⌃</span>
                 </div>
-                <a class="nav-item sub-item" href="#userTableWrap">用户列表</a>
-                <a class="nav-item sub-item" href="#userEditForm">账号编辑</a>
+                <a class="nav-item sub-item" href="#users" data-page="users">用户列表</a>
+                <a class="nav-item sub-item" href="#users" data-page="users">账号编辑</a>
             </div>
-            <div class="nav-group">
+            <div class="nav-group" data-nav-group="students">
                 <div class="nav-group-title">
                     <span class="nav-icon">☷</span>
                     <span>学生</span>
                     <span class="nav-caret">⌃</span>
                 </div>
-                <a class="nav-item sub-item" href="#studentTableWrap">学生列表</a>
-                <a class="nav-item sub-item" href="#studentForm">新增学生</a>
+                <a class="nav-item sub-item" href="#students" data-page="students">学生列表</a>
+                <a class="nav-item sub-item" href="#students" data-page="students">学生维护</a>
             </div>
-            <div class="nav-group">
+            <div class="nav-group" data-nav-group="teachers">
                 <div class="nav-group-title">
                     <span class="nav-icon">◎</span>
                     <span>老师</span>
                     <span class="nav-caret">⌃</span>
                 </div>
-                <a class="nav-item sub-item" href="#teacherTableWrap">老师列表</a>
-                <a class="nav-item sub-item" href="#teacherForm">新增老师</a>
+                <a class="nav-item sub-item" href="#teachers" data-page="teachers">老师列表</a>
+                <a class="nav-item sub-item" href="#teachers" data-page="teachers">老师维护</a>
             </div>
-            <div class="nav-group">
+            <div class="nav-group" data-nav-group="scores">
                 <div class="nav-group-title">
                     <span class="nav-icon">≣</span>
                     <span>成绩</span>
                     <span class="nav-caret">⌃</span>
                 </div>
-                <a class="nav-item sub-item" href="#scoreTableWrap">成绩列表</a>
-                <a class="nav-item sub-item" href="#scoreForm">成绩维护</a>
+                <a class="nav-item sub-item" href="#scores" data-page="scores">成绩列表</a>
+                <a class="nav-item sub-item" href="#scores" data-page="scores">成绩维护</a>
             </div>
-            <div class="nav-group muted-group">
+            <div class="nav-group" data-nav-group="requests">
                 <div class="nav-group-title">
                     <span class="nav-icon">⚙</span>
-                    <span>系统</span>
-                    <span class="nav-caret">⌄</span>
+                    <span>请求</span>
+                    <span class="nav-caret">⌃</span>
                 </div>
+                <a class="nav-item sub-item" href="#requests" data-page="requests">请求中心</a>
             </div>
         </nav>
     </aside>
@@ -87,6 +88,6 @@
     </div>
 </div>
 
-<script src="/app.js?v=20260603-1"></script>
+<script src="/app.js?v=20260608-1"></script>
 </body>
 </html>

@@ -5,6 +5,7 @@
 
 <mapper namespace="com.example.demo.mapper.RequestTicketMapper">
 
+    <!-- resultMap 解决数据库下划线字段和 Java 驼峰属性之间的映射关系。 -->
     <resultMap id="RequestTicketResultMap" type="RequestTicket">
         <id property="id" column="id"/>
         <result property="requesterUserId" column="requester_user_id"/>
@@ -28,6 +29,7 @@
         <result property="read" column="is_read"/>
     </resultMap>
 
+    <!-- 新增一条请求记录，提交成功后数据库会自动生成请求 id。 -->
     <insert id="insertRequestTicket" parameterType="RequestTicket" useGeneratedKeys="true" keyProperty="id">
         insert into request_ticket(
             requester_user_id, requester_username, requester_role, requester_identity_type, requester_identity_id,
@@ -41,6 +43,7 @@
         )
     </insert>
 
+    <!-- 根据请求 id 查询详情，同时左联管理员通知表带出已读状态。 -->
     <select id="findById" resultMap="RequestTicketResultMap">
         select rt.*, an.is_read
         from request_ticket rt
@@ -48,6 +51,7 @@
         where rt.id = #{id}
     </select>
 
+    <!-- 查询当前用户自己发起的请求列表，按创建时间倒序展示。 -->
     <select id="findMyRequests" resultMap="RequestTicketResultMap">
         select rt.*, an.is_read
         from request_ticket rt
@@ -56,6 +60,7 @@
         order by rt.created_at desc, rt.id desc
     </select>
 
+    <!-- 管理员请求中心查询全部请求，优先把未读请求排在前面。 -->
     <select id="findAdminRequests" resultMap="RequestTicketResultMap">
         select rt.*, an.is_read
         from request_ticket rt
@@ -63,6 +68,7 @@
         order by an.is_read asc, rt.created_at desc, rt.id desc
     </select>
 
+    <!-- 管理员审批后，更新请求状态、处理人、处理时间和处理意见。 -->
     <update id="updateHandledFields" parameterType="RequestTicket">
         update request_ticket
         set status = #{status},

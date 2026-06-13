@@ -5,6 +5,7 @@
 
 <mapper namespace="com.example.demo.mapper.StudentScoreMapper">
 
+    <!-- 条件查询成绩列表：支持学生工号、课程名称和学期三个筛选条件。 -->
     <select id="findByConditions" resultType="StudentScore">
         select id, student_id as studentId, course_name as courseName, score, semester,
                teacher_id as teacherId, teacher_name as teacherName
@@ -23,6 +24,7 @@
         order by student_id asc, semester desc, id asc
     </select>
 
+    <!-- 根据成绩记录 id 查询单条成绩详情。 -->
     <select id="findById" resultType="StudentScore">
         select id, student_id as studentId, course_name as courseName, score, semester,
                teacher_id as teacherId, teacher_name as teacherName
@@ -30,11 +32,13 @@
         where id = #{id}
     </select>
 
+    <!-- 新增成绩记录时，使用 useGeneratedKeys 自动回填数据库生成的主键 id。 -->
     <insert id="insertScore" parameterType="StudentScore" useGeneratedKeys="true" keyProperty="id">
         insert into student_score(student_id, course_name, score, semester, teacher_id, teacher_name)
         values(#{studentId}, #{courseName}, #{score}, #{semester}, #{teacherId}, #{teacherName})
     </insert>
 
+    <!-- 根据成绩记录 id 修改成绩内容和对应教师信息。 -->
     <update id="updateScore" parameterType="StudentScore">
         update student_score
         set student_id = #{studentId},

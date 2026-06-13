@@ -5,24 +5,30 @@ import java.time.LocalDateTime;
 // RequestTicket 保存用户发起的业务请求，例如成绩复核、成绩更正。
 public class RequestTicket {
     private Long id;
+    // requester* 这一组字段用于快照保存发起请求时的用户信息。
     private Integer requesterUserId;
     private String requesterUsername;
     private String requesterRole;
     private String requesterIdentityType;
     private Integer requesterIdentityId;
+    // relatedEntity* 用于关联学生、教师或成绩记录。
     private String requestType;
     private String title;
     private String content;
     private String relatedEntityType;
     private Long relatedEntityId;
+    // extraPayloadJson 用来保存额外结构化信息，例如原成绩、目标成绩等。
     private String extraPayloadJson;
+    // status 表示当前审批状态，例如 PENDING、APPROVED。
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    // handled* 这一组字段保存管理员审批后的处理信息。
     private Integer handledByUserId;
     private String handledByUsername;
     private LocalDateTime handledAt;
     private String handleComment;
+    // read 不是 request_ticket 表本身的字段，而是联表查管理员通知时带回来的已读状态。
     private Boolean read;
 
     public Long getId() {
